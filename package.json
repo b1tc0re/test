@@ -5,12 +5,8 @@
   "type": "module",
   "description": "Dilexy Vue 3 component library built on Nuxt UI.",
   "license": "MIT",
-  "files": [
-    "build/dist"
-  ],
-  "sideEffects": [
-    "**/*.css"
-  ],
+  "files": ["build/dist"],
+  "sideEffects": ["**/*.css"],
   "exports": {
     "./button": {
       "types": "./build/dist/components/button/index.d.ts",
@@ -31,7 +27,8 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "check": "bun run format:check && bun run lint && bun run stylelint && bun run typecheck && bun run test && bun run test:coverage && bun run build && bun run build:storybook",
+    "verify:package": "node scripts/verify-package.mjs",
+    "check": "bun run format:check && bun run lint && bun run stylelint && bun run typecheck && bun run test && bun run test:coverage && bun run build && bun run verify:package && bun run build:storybook",
     "pack": "bun pm pack --destination build/package"
   },
   "peerDependencies": {
@@ -70,7 +67,5 @@
     "vue-tsc": "3.3.8"
   },
   "packageManager": "bun@1.3.14",
-  "engines": {
-    "node": ">=22.12.0"
-  }
+  "engines": { "node": ">=22.12.0" }
 }

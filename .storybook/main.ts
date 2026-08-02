@@ -1,4 +1,3 @@
-import ui from '@nuxt/ui/vite'
 import type { StorybookConfig } from '@storybook/vue3-vite'
 
 const config: StorybookConfig = {
@@ -8,18 +7,7 @@ const config: StorybookConfig = {
   core: { disableTelemetry: true },
   viteFinal(config) {
     config.cacheDir = 'build/cache/storybook'
-    config.plugins ??= []
-
-    const nuxtUiPlugins = ui({
-      autoImport: false,
-      components: false,
-      colorMode: false,
-      dts: false,
-      router: false,
-    })
-
-    config.plugins.push(...(Array.isArray(nuxtUiPlugins) ? nuxtUiPlugins : [nuxtUiPlugins]))
-
+    config.plugins = config.plugins?.filter((plugin) => plugin && plugin.name !== 'vite:dts')
     return config
   },
 }

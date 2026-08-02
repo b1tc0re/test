@@ -4,6 +4,6 @@
     "includes": ["**/*.ts", "**/*.js", "**/*.mjs", "**/*.json", "!build", "!node_modules"]
   },
   "formatter": { "enabled": false },
-  "linter": { "enabled": true, "rules": { "recommended": true } },
+  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
   "assist": { "actions": { "source": { "organizeImports": "off" } } }
 }
