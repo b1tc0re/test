@@ -34,7 +34,8 @@ export default defineConfig({
     rollupOptions: {
       external: ['vue', '@nuxt/ui', /^@nuxt\/ui\//],
       output: {
-        assetFileNames: (assetInfo) => assetInfo.name === 'style.css' ? 'components/button/style.css' : 'assets/[name][extname]',
+        assetFileNames: (assetInfo) =>
+          assetInfo.name === 'style.css' ? 'components/button/style.css' : 'assets/[name][extname]',
         entryFileNames: '[name].js',
       },
     },

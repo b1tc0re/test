@@ -4,10 +4,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   cacheDir: 'build/cache/vitest',
-  plugins: [
-    vue(),
-    ui({ autoImport: false, components: false, colorMode: false, dts: false, router: false }),
-  ],
+  plugins: [vue(), ui({ autoImport: false, components: false, colorMode: false, dts: false, router: false })],
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/test-setup.ts'],
