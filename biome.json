@@ -1,6 +1,8 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
-  "files": { "includes": ["**", "!build", "!node_modules"] },
+  "files": {
+    "includes": ["**/*.ts", "**/*.js", "**/*.mjs", "**/*.json", "!build", "!node_modules"]
+  },
   "formatter": { "enabled": false },
   "linter": { "enabled": true, "rules": { "recommended": true } },
   "assist": { "actions": { "source": { "organizeImports": "off" } } }

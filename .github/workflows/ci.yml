@@ -6,15 +6,13 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -25,24 +23,7 @@ jobs:
           node-version: 22.12.0
 
       - name: Install dependencies
-        run: |
-          if [ -f bun.lock ]; then
-            bun install --frozen-lockfile
-          else
-            bun install
-          fi
-
-      - name: Bootstrap generated files
-        run: |
-          bun run format
-          bun run stylelint:fix
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bun.lock .
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: apply generated formatting and lockfile"
-            git push
-          fi
+        run: bun install --frozen-lockfile
 
       - name: Verify
         run: bun run check
@@ -51,7 +32,6 @@ jobs:
         run: bun run pack
 
       - name: Upload outputs
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: dilexy-ui-build
