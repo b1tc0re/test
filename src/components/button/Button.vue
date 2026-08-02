@@ -20,8 +20,16 @@ function forwardedProps() {
 
 <template>
   <UButton v-bind="forwardedProps()">
-    <template v-for="(_, slotName) in $slots" #[slotName]="slotProps">
-      <slot :name="slotName" v-bind="slotProps ?? {}" />
+    <template v-if="$slots.leading" #leading>
+      <slot name="leading" />
+    </template>
+
+    <template v-if="$slots.default" #default>
+      <slot />
+    </template>
+
+    <template v-if="$slots.trailing" #trailing>
+      <slot name="trailing" />
     </template>
   </UButton>
 </template>
