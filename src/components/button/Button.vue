@@ -8,10 +8,18 @@ defineOptions({ inheritAttrs: false })
 
 const props = defineProps<ButtonProps>()
 const attrs = useAttrs()
+
+function forwardedProps() {
+  return {
+    ...props,
+    ...attrs,
+    class: [styles.root, attrs.class],
+  }
+}
 </script>
 
 <template>
-  <UButton v-bind="props" v-bind="attrs" :class="[styles.root, attrs.class]">
+  <UButton v-bind="forwardedProps()">
     <template v-for="(_, slotName) in $slots" #[slotName]="slotProps">
       <slot :name="slotName" v-bind="slotProps ?? {}" />
     </template>
