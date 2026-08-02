@@ -5,8 +5,12 @@
   "type": "module",
   "description": "Dilexy Vue 3 component library built on Nuxt UI.",
   "license": "MIT",
-  "files": ["build/dist"],
-  "sideEffects": ["**/*.css"],
+  "files": [
+    "build/dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     "./button": {
       "types": "./build/dist/components/button/index.d.ts",
