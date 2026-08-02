@@ -1,0 +1,7 @@
+.root {
+  transition: transform 120ms ease;
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+}

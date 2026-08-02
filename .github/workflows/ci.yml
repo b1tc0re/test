@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Install dependencies
+        run: |
+          if [ -f bun.lock ]; then
+            bun install --frozen-lockfile
+          else
+            bun install
+          fi
+      - name: Verify
+        run: bun run check
+      - name: Pack
+        run: bun run pack
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: dilexy-ui-build
+          path: |
+            bun.lock
+            build/dist
+            build/coverage
+            build/storybook-static
+            build/package
+          if-no-files-found: error
