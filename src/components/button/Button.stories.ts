@@ -16,6 +16,11 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
+
 export const AdditionalRootClass: Story = {
-  args: { class: 'card_button', 'data-test': 'storybook-button' },
+  render: (args) => ({
+    components: { Button },
+    setup: () => ({ args }),
+    template: '<Button v-bind="args" class="card_button" data-test="storybook-button" />',
+  }),
 }

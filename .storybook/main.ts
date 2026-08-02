@@ -9,7 +9,17 @@ const config: StorybookConfig = {
   viteFinal(config) {
     config.cacheDir = 'build/cache/storybook'
     config.plugins ??= []
-    config.plugins.push(...ui({ autoImport: false, components: false, colorMode: false, dts: false, router: false }))
+
+    const nuxtUiPlugins = ui({
+      autoImport: false,
+      components: false,
+      colorMode: false,
+      dts: false,
+      router: false,
+    })
+
+    config.plugins.push(...(Array.isArray(nuxtUiPlugins) ? nuxtUiPlugins : [nuxtUiPlugins]))
+
     return config
   },
 }
