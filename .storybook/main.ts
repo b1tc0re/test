@@ -1,4 +1,17 @@
 import type { StorybookConfig } from '@storybook/vue3-vite'
+import type { PluginOption } from 'vite'
+
+function removeDeclarationPlugin(plugin: PluginOption): PluginOption {
+  if (Array.isArray(plugin)) {
+    return plugin.map(removeDeclarationPlugin)
+  }
+
+  if (plugin && typeof plugin === 'object' && 'name' in plugin && plugin.name === 'vite:dts') {
+    return false
+  }
+
+  return plugin
+}
 
 const config: StorybookConfig = {
   framework: { name: '@storybook/vue3-vite', options: {} },
@@ -7,7 +20,7 @@ const config: StorybookConfig = {
   core: { disableTelemetry: true },
   viteFinal(config) {
     config.cacheDir = 'build/cache/storybook'
-    config.plugins = config.plugins?.filter((plugin) => plugin && plugin.name !== 'vite:dts')
+    config.plugins = config.plugins?.map(removeDeclarationPlugin)
     return config
   },
 }
