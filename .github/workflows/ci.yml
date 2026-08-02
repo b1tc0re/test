@@ -6,13 +6,15 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -30,42 +32,23 @@ jobs:
             bun install
           fi
 
-      - name: Format sources for bootstrap artifact
-        run: bun run format
+      - name: Bootstrap generated files
+        run: |
+          bun run format
+          bun run stylelint:fix
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bun.lock .
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: apply generated formatting and lockfile"
+            git push
+          fi
 
       - name: Verify
         run: bun run check
 
       - name: Pack
         run: bun run pack
-
-      - name: Upload bootstrap source
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dilexy-ui-bootstrap
-          path: |
-            .github
-            .storybook
-            docs
-            scripts
-            src
-            .gitignore
-            .prettierignore
-            .prettierrc.json
-            biome.json
-            bun.lock
-            CONTRIBUTING.md
-            package.json
-            postcss.config.mjs
-            README.md
-            stylelint.config.mjs
-            tsconfig.app.json
-            tsconfig.json
-            tsconfig.node.json
-            vite.config.ts
-            vitest.config.ts
-          if-no-files-found: error
 
       - name: Upload outputs
         if: success()
