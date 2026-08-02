@@ -6,7 +6,13 @@ export default defineConfig({
   cacheDir: 'build/cache/vitest',
   plugins: [
     vue(),
-    ui({ autoImport: false, components: false, colorMode: false, dts: false, router: false }),
+    ui({
+      autoImport: false,
+      components: false,
+      colorMode: false,
+      dts: false,
+      router: false,
+    }),
   ],
   test: {
     environment: 'happy-dom',
