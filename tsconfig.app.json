@@ -8,9 +8,9 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "paths": {
-      "@/*": ["src/*"],
-      "#build/ui": ["node_modules/.nuxt-ui/ui"],
-      "#build/ui/*": ["node_modules/.nuxt-ui/ui/*"]
+      "@/*": ["./src/*"],
+      "#build/ui": ["./node_modules/.nuxt-ui/ui"],
+      "#build/ui/*": ["./node_modules/.nuxt-ui/ui/*"]
     },
     "skipLibCheck": true,
     "noEmit": true
