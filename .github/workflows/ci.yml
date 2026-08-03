@@ -122,10 +122,16 @@ jobs:
           cat > src/App.vue <<'VUE'
           <script setup lang="ts">
           import { Button } from '@dilexy/ui/button'
+          import { SecondButton } from '@dilexy/ui/second-button'
           </script>
 
           <template>
-            <Button class="consumer_button" data-test="consumer-button" label="Consumer smoke test" />
+            <Button class="consumer-button" data-test="consumer-button" label="Choose a gift" />
+            <SecondButton
+              class="consumer-second-button"
+              data-test="consumer-second-button"
+              label="Show more"
+            />
           </template>
           VUE
 
