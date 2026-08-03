@@ -31,7 +31,7 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "verify:package": "node scripts/verify-package.mjs",
+    "verify:package": "node scripts/verify-component-build.mjs",
     "check": "bun run format:check && bun run lint && bun run stylelint && bun run typecheck && bun run test && bun run test:coverage && bun run build && bun run verify:package && bun run build:storybook",
     "pack": "bun pm pack --destination build/package"
   },
