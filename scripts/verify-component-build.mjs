@@ -33,6 +33,9 @@ const componentEntries = readdirSync(componentsDir, { withFileTypes: true })
 assert(componentEntries.length > 0, 'No component entry files were generated.')
 
 const importedCssFiles = new Set()
+const emittedFiles = filesRecursively(distDir)
+
+console.log(emittedFiles.map((file) => file.replace(`${distDir}/`, '')).join('\n'))
 
 for (const entryFile of componentEntries) {
   const componentDir = dirname(entryFile)
@@ -50,8 +53,6 @@ for (const entryFile of componentEntries) {
     importedCssFiles.add(cssFile)
   }
 }
-
-const emittedFiles = filesRecursively(distDir)
 
 assert(
   emittedFiles.every((file) => basename(file) !== 'ui.css'),
