@@ -21,10 +21,11 @@
     color 160ms ease,
     transform 100ms ease;
 
-  &:hover:not(:disabled, [aria-disabled='true']) {
-    border-color: #d95d22;
-    background-color: #d95d22;
-    box-shadow: 0 6px 18px rgb(231 104 40 / 30%);
+  &:disabled,
+  &[aria-disabled='true'] {
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.55;
   }
 
   &:focus-visible {
@@ -32,18 +33,17 @@
     outline-offset: 2px;
   }
 
+  &:hover:not(:disabled, [aria-disabled='true']) {
+    border-color: #d95d22;
+    background-color: #d95d22;
+    box-shadow: 0 6px 18px rgb(231 104 40 / 30%);
+  }
+
   &:active:not(:disabled, [aria-disabled='true']) {
     border-color: #c9521b;
     background-color: #c9521b;
     box-shadow: 0 2px 8px rgb(231 104 40 / 24%);
     transform: translateY(1px);
-  }
-
-  &:disabled,
-  &[aria-disabled='true'] {
-    box-shadow: none;
-    cursor: not-allowed;
-    opacity: 0.55;
   }
 }
 
