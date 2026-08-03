@@ -1,3 +1,14 @@
-import type { ButtonProps } from '../button/button.types'
+export type SecondButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
-export type SecondButtonProps = ButtonProps
+export interface SecondButtonProps {
+  label?: string
+  size?: SecondButtonSize
+  type?: 'button' | 'submit' | 'reset'
+  disabled?: boolean
+  loading?: boolean
+  block?: boolean
+  square?: boolean
+  icon?: string
+  leadingIcon?: string
+  trailingIcon?: string
+}
