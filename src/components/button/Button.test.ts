@@ -1,6 +1,8 @@
-import { fireEvent, render } from '@testing-library/vue'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render } from '@testing-library/vue'
+import { afterEach, describe, expect, it } from 'vitest'
 import Button from './Button.vue'
+
+afterEach(cleanup)
 
 describe('Button', () => {
   it('forwards class and data attributes to the root element', () => {
