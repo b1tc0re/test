@@ -12,8 +12,8 @@ const attrs = useAttrs()
 const internalUi = {
   base: () => styles.root,
   label: () => styles.label,
-  leadingIcon: () => styles.leadingIcon,
-  trailingIcon: () => styles.trailingIcon,
+  leadingIcon: () => styles['leading-icon'],
+  trailingIcon: () => styles['trailing-icon'],
 }
 
 function forwardedProps() {
