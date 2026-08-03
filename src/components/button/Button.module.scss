@@ -1,7 +1,17 @@
+@reference '../../styles/main.css';
+
 .root {
+  @apply inline-flex items-center justify-center;
+
   transition: transform 120ms ease;
 
   &:active:not(:disabled) {
     transform: translateY(1px);
   }
+}
+
+.label,
+.leadingIcon,
+.trailingIcon {
+  @apply inline-flex items-center;
 }
