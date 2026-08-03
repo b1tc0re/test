@@ -1,0 +1,14 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Introduction" />
+
+# Dilexy UI
+
+Dilexy UI is a Vue 3 component library built on Nuxt UI.
+
+## Rules
+
+- Components wrap Nuxt UI instead of replacing it.
+- Parent `class`, `style`, listeners and `data-*` attributes are supported.
+- The Nuxt UI `ui` prop is intentionally not exposed by wrapper prop types.
+- Consumers import components through subpaths such as `@dilexy/ui/button`.
