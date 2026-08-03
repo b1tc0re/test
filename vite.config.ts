@@ -39,13 +39,19 @@ function normalizeDeclarationPath(filePath: string) {
   }
 
   const relativePath = normalizedPath.slice(markerIndex + marker.length)
-  const match = relativePath.match(/^([^/]+)\/src\/components\/\1\/(.+)$/)
+  const entryScopedMatch = relativePath.match(/^[^/]+\/src\/components\/([^/]+)\/(.+)$/)
 
-  if (!match) {
-    return filePath
+  if (entryScopedMatch) {
+    return resolve(declarationsDir, entryScopedMatch[1], entryScopedMatch[2])
   }
 
-  return resolve(declarationsDir, match[1], match[2])
+  const sourceScopedMatch = relativePath.match(/^src\/components\/([^/]+)\/(.+)$/)
+
+  if (sourceScopedMatch) {
+    return resolve(declarationsDir, sourceScopedMatch[1], sourceScopedMatch[2])
+  }
+
+  return filePath
 }
 
 type ChunkWithViteMetadata = OutputChunk & {
