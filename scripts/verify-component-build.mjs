@@ -23,10 +23,7 @@ function filesRecursively(directory) {
 }
 
 assert(existsSync(componentsDir), 'Missing build/dist/components directory.')
-assert(
-  !existsSync(resolve(componentsDir, 'src')),
-  'Declarations must not be emitted under build/dist/components/src.',
-)
+assert(!existsSync(resolve(componentsDir, 'src')), 'Declarations must not be emitted under build/dist/components/src.')
 
 const componentEntries = readdirSync(componentsDir, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
@@ -41,15 +38,10 @@ for (const entryFile of componentEntries) {
   const componentDir = dirname(entryFile)
   const componentName = basename(componentDir)
   const code = readFileSync(entryFile, 'utf8')
-  const cssImports = [...code.matchAll(/import\s+["']([^"']+\.css)["'];?/g)].map(
-    (match) => match[1],
-  )
+  const cssImports = [...code.matchAll(/import\s+["']([^"']+\.css)["'];?/g)].map((match) => match[1])
 
   assert(cssImports.length > 0, `${componentName} entry does not import its CSS.`)
-  assert(
-    existsSync(resolve(componentDir, 'index.d.ts')),
-    `${componentName} declaration entry is missing.`,
-  )
+  assert(existsSync(resolve(componentDir, 'index.d.ts')), `${componentName} declaration entry is missing.`)
 
   for (const cssImport of cssImports) {
     const cssFile = resolve(componentDir, cssImport)
@@ -71,19 +63,8 @@ const buttonCss = [...importedCssFiles]
   .find((css) => css.includes('transition:transform 120ms ease'))
 
 assert(buttonCss, 'Unable to identify the Button CSS output.')
-assert(
-  buttonCss.includes('display:inline-flex'),
-  'Tailwind @apply did not emit display:inline-flex.',
-)
-assert(
-  buttonCss.includes('align-items:center'),
-  'Tailwind @apply did not emit align-items:center.',
-)
-assert(
-  buttonCss.includes('justify-content:center'),
-  'Tailwind @apply did not emit justify-content:center.',
-)
+assert(buttonCss.includes('display:inline-flex'), 'Tailwind @apply did not emit display:inline-flex.')
+assert(buttonCss.includes('align-items:center'), 'Tailwind @apply did not emit align-items:center.')
+assert(buttonCss.includes('justify-content:center'), 'Tailwind @apply did not emit justify-content:center.')
 
-console.log(
-  `Verified ${componentEntries.length} component entry and ${importedCssFiles.size} imported CSS file(s).`,
-)
+console.log(`Verified ${componentEntries.length} component entry and ${importedCssFiles.size} imported CSS file(s).`)
