@@ -33,6 +33,7 @@ assert(componentEntries.length > 0, 'No component entry files were generated.')
 
 const importedCssFiles = new Set()
 const emittedFiles = filesRecursively(distDir)
+let buttonCss = ''
 
 assert(
   emittedFiles.every((file) => !file.replaceAll('\\', '/').includes('/src/components/')),
@@ -53,6 +54,10 @@ for (const entryFile of componentEntries) {
 
     assert(existsSync(cssFile), `${componentName} imports missing CSS: ${cssImport}`)
     importedCssFiles.add(cssFile)
+
+    if (componentName === 'button') {
+      buttonCss += readFileSync(cssFile, 'utf8')
+    }
   }
 }
 
@@ -61,11 +66,7 @@ assert(
   'A shared ui.css was emitted; component CSS must stay split.',
 )
 
-const buttonCss = [...importedCssFiles]
-  .map((file) => readFileSync(file, 'utf8'))
-  .find((css) => css.includes('transition:transform 120ms ease'))
-
-assert(buttonCss, 'Unable to identify the Button CSS output.')
+assert(buttonCss, 'Button entry does not import CSS.')
 assert(buttonCss.includes('display:inline-flex'), 'Tailwind @apply did not emit display:inline-flex.')
 assert(buttonCss.includes('align-items:center'), 'Tailwind @apply did not emit align-items:center.')
 assert(buttonCss.includes('justify-content:center'), 'Tailwind @apply did not emit justify-content:center.')
