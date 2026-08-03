@@ -23,7 +23,6 @@ function filesRecursively(directory) {
 }
 
 assert(existsSync(componentsDir), 'Missing build/dist/components directory.')
-assert(!existsSync(resolve(componentsDir, 'src')), 'Declarations must not be emitted under build/dist/components/src.')
 
 const componentEntries = readdirSync(componentsDir, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
@@ -35,7 +34,10 @@ assert(componentEntries.length > 0, 'No component entry files were generated.')
 const importedCssFiles = new Set()
 const emittedFiles = filesRecursively(distDir)
 
-console.log(emittedFiles.map((file) => file.replace(`${distDir}/`, '')).join('\n'))
+assert(
+  emittedFiles.every((file) => !file.replaceAll('\\', '/').includes('/src/components/')),
+  'Declarations must not contain a nested src/components directory.',
+)
 
 for (const entryFile of componentEntries) {
   const componentDir = dirname(entryFile)
