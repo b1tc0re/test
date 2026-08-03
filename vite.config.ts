@@ -1,34 +1,63 @@
-import { resolve } from 'node:path'
+import { existsSync, readdirSync } from 'node:fs'
+import { posix, resolve } from 'node:path'
 import ui from '@nuxt/ui/vite'
 import vue from '@vitejs/plugin-vue'
+import type { OutputChunk } from 'rollup'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vite'
 import dts from 'vite-plugin-dts'
 
 const rootDir = import.meta.dirname
-const buttonDistDir = resolve(rootDir, 'build/dist/components/button')
+const componentsDir = resolve(rootDir, 'src/components')
 
-function normalizeButtonDeclarationPath(filePath: string) {
-  const normalizedPath = filePath.replaceAll('\\', '/')
-  const marker = '/components/button/src/components/button/'
-  const markerIndex = normalizedPath.indexOf(marker)
+function componentEntries() {
+  return Object.fromEntries(
+    readdirSync(componentsDir, { withFileTypes: true }).flatMap((entry) => {
+      if (!entry.isDirectory()) {
+        return []
+      }
 
-  if (markerIndex === -1) {
-    return filePath
-  }
+      const componentEntry = resolve(componentsDir, entry.name, 'index.ts')
 
-  return resolve(buttonDistDir, normalizedPath.slice(markerIndex + marker.length))
+      if (!existsSync(componentEntry)) {
+        return []
+      }
+
+      return [[`components/${entry.name}/index`, componentEntry]]
+    }),
+  )
 }
 
-function injectButtonCss(): Plugin {
-  return {
-    name: 'dilexy:inject-button-css',
-    enforce: 'post',
-    generateBundle(_options, bundle) {
-      const entry = bundle['components/button/index.js']
+type ChunkWithViteMetadata = OutputChunk & {
+  viteMetadata?: {
+    importedCss: Set<string>
+  }
+}
 
-      if (entry?.type === 'chunk') {
-        entry.code = `import '../../assets/ui.css';\n${entry.code}`
+function injectEntryCss(): Plugin {
+  return {
+    name: 'dilexy:inject-entry-css',
+    enforce: 'post',
+    renderChunk(code, chunk) {
+      const importedCss = [...((chunk as ChunkWithViteMetadata).viteMetadata?.importedCss ?? [])]
+
+      if (importedCss.length === 0) {
+        return null
+      }
+
+      const imports = importedCss.map((cssFile) => {
+        let importPath = posix.relative(posix.dirname(chunk.fileName), cssFile)
+
+        if (!importPath.startsWith('.')) {
+          importPath = `./${importPath}`
+        }
+
+        return `import ${JSON.stringify(importPath)};`
+      })
+
+      return {
+        code: `${imports.join('\n')}\n${code}`,
+        map: null,
       }
     },
   }
@@ -39,39 +68,47 @@ export default defineConfig({
   plugins: [
     vue(),
     ui({ autoImport: false, components: false, colorMode: false, dts: false, router: false }),
-    injectButtonCss(),
+    injectEntryCss(),
     dts({
-      entryRoot: 'src',
+      entryRoot: componentsDir,
       include: ['src/components/**/*.ts', 'src/components/**/*.vue'],
       exclude: ['src/**/*.stories.ts', 'src/**/*.test.ts'],
-      outDir: 'build/dist',
-      tsconfigPath: 'tsconfig.app.json',
-      beforeWriteFile: (filePath, content) => ({
-        filePath: normalizeButtonDeclarationPath(filePath),
-        content,
-      }),
+      outDir: resolve(rootDir, 'build/dist/components'),
+      tsconfigPath: resolve(rootDir, 'tsconfig.app.json'),
     }),
   ],
-  resolve: { alias: { '@': resolve(rootDir, 'src') } },
+  resolve: {
+    alias: {
+      '@': resolve(rootDir, 'src'),
+    },
+  },
   css: {
     postcss: './postcss.config.mjs',
-    modules: { generateScopedName: 'dui_[name]_[local]_[hash:base64:6]' },
-    preprocessorOptions: { scss: { api: 'modern-compiler' } },
+    modules: {
+      generateScopedName: 'dui_[name]_[local]_[hash:base64:6]',
+    },
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler',
+      },
+    },
   },
   build: {
     target: 'es2022',
     outDir: 'build/dist',
     emptyOutDir: true,
+    cssCodeSplit: true,
     lib: {
-      entry: { 'components/button/index': resolve(rootDir, 'src/components/button/index.ts') },
+      entry: componentEntries(),
       formats: ['es'],
     },
     rollupOptions: {
       external: ['vue', '@nuxt/ui', /^@nuxt\/ui\//],
       output: {
-        assetFileNames: (assetInfo) =>
-          assetInfo.name === 'style.css' ? 'components/button/style.css' : 'assets/[name][extname]',
         entryFileNames: '[name].js',
+        chunkFileNames: 'chunks/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        hoistTransitiveImports: false,
       },
     },
   },
