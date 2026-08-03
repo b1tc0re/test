@@ -6,11 +6,23 @@ import styles from './Button.module.scss'
 
 defineOptions({ inheritAttrs: false })
 
-const props = defineProps<ButtonProps>()
+const props = withDefaults(defineProps<ButtonProps>(), {
+  size: 'md',
+  type: 'button',
+})
 const attrs = useAttrs()
 
+function rootClasses() {
+  return [
+    styles.root,
+    styles[`size-${props.size}`],
+    props.block && styles.block,
+    props.square && styles.square,
+  ]
+}
+
 const internalUi = {
-  base: () => styles.root,
+  base: rootClasses,
   label: () => styles.label,
   leadingIcon: () => styles['leading-icon'],
   trailingIcon: () => styles['trailing-icon'],
