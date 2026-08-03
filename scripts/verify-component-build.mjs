@@ -67,8 +67,8 @@ assert(
 )
 
 assert(buttonCss, 'Button entry does not import CSS.')
-assert(buttonCss.includes('display:inline-flex'), 'Tailwind @apply did not emit display:inline-flex.')
-assert(buttonCss.includes('align-items:center'), 'Tailwind @apply did not emit align-items:center.')
-assert(buttonCss.includes('justify-content:center'), 'Tailwind @apply did not emit justify-content:center.')
+assert(/display:\s*inline-flex/.test(buttonCss), 'Tailwind @apply did not emit display:inline-flex.')
+assert(/align-items:\s*center/.test(buttonCss), 'Tailwind @apply did not emit align-items:center.')
+assert(/justify-content:\s*center/.test(buttonCss), 'Tailwind @apply did not emit justify-content:center.')
 
 console.log(`Verified ${componentEntries.length} component entry and ${importedCssFiles.size} imported CSS file(s).`)
