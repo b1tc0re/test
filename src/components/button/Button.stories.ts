@@ -5,10 +5,9 @@ const meta = {
   title: 'Components/Button',
   component: Button,
   tags: ['autodocs'],
-  args: { label: 'Continue', color: 'primary', variant: 'solid' },
+  args: { label: 'Подобрать подарок', size: 'md' },
   argTypes: {
-    color: { control: 'select', options: ['primary', 'secondary', 'success', 'info', 'warning', 'error', 'neutral'] },
-    variant: { control: 'select', options: ['solid', 'outline', 'soft', 'subtle', 'ghost', 'link'] },
+    size: { control: 'select', options: ['xs', 'sm', 'md', 'lg', 'xl'] },
   },
 } satisfies Meta<typeof Button>
 
@@ -17,10 +16,18 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
 
+export const Block: Story = {
+  args: { block: true },
+}
+
+export const Disabled: Story = {
+  args: { disabled: true },
+}
+
 export const AdditionalRootClass: Story = {
   render: (args) => ({
     components: { Button },
     setup: () => ({ args }),
-    template: '<Button v-bind="args" class="card_button" data-test="storybook-button" />',
+    template: '<Button v-bind="args" class="card-button" data-test="storybook-button" />',
   }),
 }
