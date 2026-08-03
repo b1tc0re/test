@@ -5,13 +5,22 @@ import Button from './Button.vue'
 describe('Button', () => {
   it('forwards class and data attributes to the root element', () => {
     const { getByRole } = render(Button, {
-      attrs: { class: 'card_button', 'data-test': 'catalog-action' },
+      attrs: { class: 'card-button', 'data-test': 'catalog-action' },
       slots: { default: 'Open catalog' },
     })
 
     const button = getByRole('button', { name: 'Open catalog' })
-    expect(button).toHaveClass('card_button')
+    expect(button).toHaveClass('card-button')
     expect(button).toHaveAttribute('data-test', 'catalog-action')
+  })
+
+  it('replaces Nuxt UI utility classes with the CSS Module root', () => {
+    const { getByRole } = render(Button, { slots: { default: 'Continue' } })
+    const className = getByRole('button', { name: 'Continue' }).className
+
+    expect(className).not.toContain('bg-primary')
+    expect(className).not.toContain('font-medium')
+    expect(className).not.toContain('rounded-md')
   })
 
   it('emits click through Nuxt UI', async () => {
