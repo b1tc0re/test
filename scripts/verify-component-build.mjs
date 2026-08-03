@@ -71,9 +71,18 @@ const buttonCss = [...importedCssFiles]
   .find((css) => css.includes('transition:transform 120ms ease'))
 
 assert(buttonCss, 'Unable to identify the Button CSS output.')
-assert(buttonCss.includes('display:inline-flex'), 'Tailwind @apply did not emit display:inline-flex.')
-assert(buttonCss.includes('align-items:center'), 'Tailwind @apply did not emit align-items:center.')
-assert(buttonCss.includes('justify-content:center'), 'Tailwind @apply did not emit justify-content:center.')
+assert(
+  buttonCss.includes('display:inline-flex'),
+  'Tailwind @apply did not emit display:inline-flex.',
+)
+assert(
+  buttonCss.includes('align-items:center'),
+  'Tailwind @apply did not emit align-items:center.',
+)
+assert(
+  buttonCss.includes('justify-content:center'),
+  'Tailwind @apply did not emit justify-content:center.',
+)
 
 console.log(
   `Verified ${componentEntries.length} component entry and ${importedCssFiles.size} imported CSS file(s).`,
