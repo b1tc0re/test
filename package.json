@@ -12,9 +12,9 @@
     "**/*.css"
   ],
   "exports": {
-    "./button": {
-      "types": "./build/dist/components/button/index.d.ts",
-      "import": "./build/dist/components/button/index.js"
+    "./*": {
+      "types": "./build/dist/components/*/index.d.ts",
+      "import": "./build/dist/components/*/index.js"
     }
   },
   "scripts": {
