@@ -25,8 +25,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Verify
-        run: bun run check
+      - name: Show Prettier diff
+        run: |
+          bunx prettier --write scripts/verify-component-build.mjs
+          git diff -- scripts/verify-component-build.mjs
+          exit 1
 
       - name: Pack
         run: bun run pack
