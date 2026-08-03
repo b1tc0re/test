@@ -13,12 +13,7 @@ const props = withDefaults(defineProps<SecondButtonProps>(), {
 const attrs = useAttrs()
 
 function rootClasses() {
-  return [
-    styles.root,
-    styles[`size-${props.size}`],
-    props.block && styles.block,
-    props.square && styles.square,
-  ]
+  return [styles.root, styles[`size-${props.size}`], props.block && styles.block, props.square && styles.square]
 }
 
 const internalUi = {
