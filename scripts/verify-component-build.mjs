@@ -66,9 +66,6 @@ assert(
   'A shared ui.css was emitted; component CSS must stay split.',
 )
 
-console.log('Button CSS output:')
-console.log(buttonCss)
-
 assert(buttonCss, 'Button entry does not import CSS.')
 assert(/display:\s*inline-flex/.test(buttonCss), 'Tailwind @apply did not emit display:inline-flex.')
 assert(/align-items:\s*center/.test(buttonCss), 'Tailwind @apply did not emit align-items:center.')
