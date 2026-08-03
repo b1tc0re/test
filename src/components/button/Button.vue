@@ -9,17 +9,25 @@ defineOptions({ inheritAttrs: false })
 const props = defineProps<ButtonProps>()
 const attrs = useAttrs()
 
+const internalUi = {
+  base: () => styles.root,
+  label: () => styles.label,
+  leadingIcon: () => styles.leadingIcon,
+  trailingIcon: () => styles.trailingIcon,
+}
+
 function forwardedProps() {
+  const { ui: _ui, ...forwardedAttrs } = attrs
+
   return {
     ...props,
-    ...attrs,
-    class: [styles.root, attrs.class],
+    ...forwardedAttrs,
   }
 }
 </script>
 
 <template>
-  <UButton v-bind="forwardedProps()">
+  <UButton v-bind="forwardedProps()" :ui="internalUi">
     <template v-if="$slots.leading" #leading>
       <slot name="leading" />
     </template>
