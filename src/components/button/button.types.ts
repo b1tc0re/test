@@ -1,8 +1,8 @@
-import type { ButtonProps as NuxtButtonProps } from '@nuxt/ui/components/Button.vue'
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
 export interface ButtonProps {
   label?: string
-  size?: NuxtButtonProps['size']
+  size?: ButtonSize
   type?: 'button' | 'submit' | 'reset'
   disabled?: boolean
   loading?: boolean
