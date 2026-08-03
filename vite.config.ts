@@ -9,6 +9,7 @@ import dts from 'vite-plugin-dts'
 
 const rootDir = import.meta.dirname
 const componentsDir = resolve(rootDir, 'src/components')
+const declarationsDir = resolve(rootDir, 'build/dist/components')
 
 function componentEntries() {
   return Object.fromEntries(
@@ -26,6 +27,25 @@ function componentEntries() {
       return [[`components/${entry.name}/index`, componentEntry]]
     }),
   )
+}
+
+function normalizeDeclarationPath(filePath: string) {
+  const normalizedPath = filePath.replaceAll('\\', '/')
+  const marker = '/build/dist/components/'
+  const markerIndex = normalizedPath.indexOf(marker)
+
+  if (markerIndex === -1) {
+    return filePath
+  }
+
+  const relativePath = normalizedPath.slice(markerIndex + marker.length)
+  const match = relativePath.match(/^([^/]+)\/src\/components\/\1\/(.+)$/)
+
+  if (!match) {
+    return filePath
+  }
+
+  return resolve(declarationsDir, match[1], match[2])
 }
 
 type ChunkWithViteMetadata = OutputChunk & {
@@ -73,8 +93,12 @@ export default defineConfig({
       entryRoot: componentsDir,
       include: ['src/components/**/*.ts', 'src/components/**/*.vue'],
       exclude: ['src/**/*.stories.ts', 'src/**/*.test.ts'],
-      outDir: resolve(rootDir, 'build/dist/components'),
+      outDir: declarationsDir,
       tsconfigPath: resolve(rootDir, 'tsconfig.app.json'),
+      beforeWriteFile: (filePath, content) => ({
+        filePath: normalizeDeclarationPath(filePath),
+        content,
+      }),
     }),
   ],
   resolve: {
