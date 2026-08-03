@@ -2,8 +2,6 @@ import type { ButtonProps as NuxtButtonProps } from '@nuxt/ui/components/Button.
 
 export interface ButtonProps {
   label?: string
-  color?: NuxtButtonProps['color']
-  variant?: NuxtButtonProps['variant']
   size?: NuxtButtonProps['size']
   type?: 'button' | 'submit' | 'reset'
   disabled?: boolean
