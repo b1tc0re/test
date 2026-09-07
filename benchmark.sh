@@ -38,6 +38,28 @@ wait_ready() {
   return 1
 }
 
+verify_worker_mode() {
+  local service="$1"
+  local state
+
+  state="$(compose exec -T "$service" curl -fsS http://127.0.0.1:8000/__benchmark/state)"
+  echo "worker-mode state (${service}): ${state}"
+
+  php -r '
+    $state = json_decode($argv[1], true, 512, JSON_THROW_ON_ERROR);
+
+    $ok = in_array($state["laravel_octane"] ?? null, ["1", "true"], true)
+        && ($state["sdk_disabled"] ?? true) === false
+        && ($state["worker_manager_resolved"] ?? false) === true
+        && ($state["request_terminated_listeners"] ?? 0) > 0;
+
+    if (! $ok) {
+        fwrite(STDERR, "Worker-mode verification failed: ".json_encode($state, JSON_UNESCAPED_SLASHES).PHP_EOL);
+        exit(1);
+    }
+  ' "$state"
+}
+
 run_wrk() {
   local service="$1"
   local duration="$2"
@@ -63,6 +85,7 @@ run_variant() {
   compose stop carbon time >/dev/null 2>&1 || true
   compose up -d --force-recreate "$service"
   wait_ready "$service"
+  verify_worker_mode "$service"
 
   echo "Warmup: ${WARMUP}"
   run_wrk "$service" "$WARMUP" "$WARMUP_THREADS" "$WARMUP_CONNECTIONS" >/dev/null
