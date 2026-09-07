@@ -1,0 +1,67 @@
+name: keepsuit-carbon-benchmark
+
+x-app-environment: &app-environment
+  APP_ENV: production
+  APP_DEBUG: "false"
+  LOG_CHANNEL: stderr
+  CACHE_STORE: array
+  SESSION_DRIVER: array
+  QUEUE_CONNECTION: sync
+  DB_CONNECTION: sqlite
+
+  OTEL_SDK_DISABLED: "false"
+  OTEL_SERVICE_NAME: keepsuit-carbon-benchmark
+  OTEL_TRACES_EXPORTER: "null"
+  OTEL_METRICS_EXPORTER: "null"
+  OTEL_LOGS_EXPORTER: "null"
+  OTEL_WORKER_MODE_FLUSH_AFTER_EACH_ITERATION: "false"
+  OTEL_WORKER_MODE_COLLECT_INTERVAL: "60"
+
+  OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+  OTEL_INSTRUMENTATION_HTTP_CLIENT: "false"
+  OTEL_INSTRUMENTATION_QUERY: "false"
+  OTEL_INSTRUMENTATION_REDIS: "false"
+  OTEL_INSTRUMENTATION_QUEUE: "false"
+  OTEL_INSTRUMENTATION_CACHE: "false"
+  OTEL_INSTRUMENTATION_EVENT: "false"
+  OTEL_INSTRUMENTATION_VIEW: "false"
+  OTEL_INSTRUMENTATION_LIVEWIRE: "false"
+  OTEL_INSTRUMENTATION_CONSOLE: "false"
+  OTEL_INSTRUMENTATION_SCOUT: "false"
+
+x-app-common: &app-common
+  environment: *app-environment
+  cpus: ${SERVER_CPUS:-2.0}
+  mem_limit: ${SERVER_MEMORY:-512m}
+  pids_limit: 512
+  restart: "no"
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/up >/dev/null || exit 1"]
+    interval: 1s
+    timeout: 1s
+    retries: 60
+    start_period: 2s
+
+services:
+  carbon:
+    <<: *app-common
+    build:
+      context: .
+      dockerfile: Dockerfile.carbon
+    ports:
+      - "127.0.0.1:${CARBON_PORT:-18080}:8000"
+
+  time:
+    <<: *app-common
+    build:
+      context: .
+      dockerfile: Dockerfile.time
+    ports:
+      - "127.0.0.1:${TIME_PORT:-18081}:8000"
+
+  wrk:
+    image: williamyeh/wrk
+    profiles: ["benchmark"]
+    cpus: ${WRK_CPUS:-1.0}
+    mem_limit: ${WRK_MEMORY:-256m}
+    pids_limit: 256
