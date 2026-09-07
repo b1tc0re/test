@@ -109,7 +109,10 @@ compose build --pull carbon time
   compose run --rm --no-deps carbon php -v
   echo
   echo "[carbon packages]"
-  compose run --rm --no-deps carbon composer show laravel/framework laravel/octane keepsuit/laravel-opentelemetry
+  for package in laravel/framework laravel/octane keepsuit/laravel-opentelemetry; do
+    compose run --rm --no-deps carbon composer show "$package" --no-ansi \
+      | awk -F' *: *' '/^(name|versions) *:/ {print}'
+  done
   echo
   echo "[carbon worker mode source]"
   compose run --rm --no-deps carbon sh -lc \
