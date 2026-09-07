@@ -6,6 +6,7 @@ ARG LARAVEL_OCTANE_VERSION=2.19.1
 ARG LARAVEL_OTEL_VERSION=2.2.4
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY benchmark-route.php /tmp/benchmark-route.php
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends unzip curl \
@@ -24,7 +25,9 @@ RUN rm -rf /app/* /app/.[!.]* /app/..?* || true \
         "laravel/octane:${LARAVEL_OCTANE_VERSION}" \
         "keepsuit/laravel-opentelemetry:${LARAVEL_OTEL_VERSION}" \
     && composer install --no-dev --no-interaction --prefer-dist --classmap-authoritative \
-    && php artisan key:generate --force
+    && php artisan key:generate --force \
+    && cp /tmp/benchmark-route.php routes/benchmark.php \
+    && printf "\nrequire __DIR__.'/benchmark.php';\n" >> routes/web.php
 
 RUN test "$(grep -o 'Carbon::now()->getTimestamp()' \
         vendor/keepsuit/laravel-opentelemetry/src/WorkerMode/WorkerModeManager.php | wc -l)" -eq 2
