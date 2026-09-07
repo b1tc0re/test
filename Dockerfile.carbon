@@ -7,7 +7,10 @@ ARG LARAVEL_OTEL_VERSION=2.2.4
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
-RUN install-php-extensions pcntl
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && install-php-extensions pcntl
 
 WORKDIR /app
 
