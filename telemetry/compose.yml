@@ -43,13 +43,6 @@ x-base-env: &base-env
   OTEL_INSTRUMENTATION_CONSOLE: "false"
   OTEL_INSTRUMENTATION_SCOUT: "false"
 
-x-otlp-env: &otlp-env
-  OTEL_TRACES_EXPORTER: otlp
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
-  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-  OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
-  OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
-
 services:
   collector:
     image: otel/opentelemetry-collector:0.160.0
@@ -105,9 +98,14 @@ services:
     depends_on:
       - collector
     environment:
-      <<: [*base-env, *otlp-env]
+      <<: *base-env
       OTEL_SDK_DISABLED: "false"
       OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
+      OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
     ports:
       - "127.0.0.1:${OTEL_HTTP_OTLP_PHP_PORT:-18104}:8000"
 
@@ -121,9 +119,14 @@ services:
     depends_on:
       - collector
     environment:
-      <<: [*base-env, *otlp-env]
+      <<: *base-env
       OTEL_SDK_DISABLED: "false"
       OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
+      OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
     ports:
       - "127.0.0.1:${OTEL_HTTP_OTLP_EXT_PORT:-18105}:8000"
 
