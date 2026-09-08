@@ -7,6 +7,8 @@ ARG LARAVEL_OTEL_VERSION=2.2.4
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY benchmark-route.php /tmp/benchmark-route.php
+COPY MinimalTelemetryMiddleware.php /tmp/MinimalTelemetryMiddleware.php
+COPY benchmark-bootstrap.php /tmp/benchmark-bootstrap.php
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends unzip curl \
@@ -25,7 +27,9 @@ RUN composer create-project --no-interaction --prefer-dist \
     && composer install --no-dev --no-interaction --prefer-dist --classmap-authoritative \
     && php artisan key:generate --force \
     && cp /tmp/benchmark-route.php routes/benchmark.php \
-    && printf "\nrequire __DIR__.'/benchmark.php';\n" >> routes/web.php
+    && printf "\nrequire __DIR__.'/benchmark.php';\n" >> routes/web.php \
+    && cp /tmp/MinimalTelemetryMiddleware.php app/Http/Middleware/MinimalTelemetryMiddleware.php \
+    && cp /tmp/benchmark-bootstrap.php bootstrap/app.php
 
 RUN cp -a /app /app-pure \
     && composer require --no-interaction --prefer-dist --with-all-dependencies \
