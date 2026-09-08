@@ -10,6 +10,7 @@ Route::get('/_benchmark/state', function () {
     $providerLoaded = false;
     $workerManagerResolved = false;
     $httpServerEnabled = null;
+    $tracesExporter = null;
 
     if ($packageInstalled) {
         $sdkDisabled = \OpenTelemetry\SDK\Sdk::isDisabled();
@@ -27,6 +28,8 @@ Route::get('/_benchmark/state', function () {
         $httpServerEnabled = is_array($httpConfig)
             ? (bool) ($httpConfig['enabled'] ?? true)
             : (bool) $httpConfig;
+
+        $tracesExporter = config('opentelemetry.traces.exporter');
     }
 
     return response()->json([
@@ -37,5 +40,7 @@ Route::get('/_benchmark/state', function () {
         'worker_manager_resolved' => $workerManagerResolved,
         'request_terminated_listeners' => count(app('events')->getListeners(RequestTerminated::class)),
         'http_server_enabled' => $httpServerEnabled,
+        'traces_exporter' => $tracesExporter,
+        'protobuf_extension' => extension_loaded('protobuf'),
     ]);
 });
