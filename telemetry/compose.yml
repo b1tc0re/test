@@ -82,6 +82,20 @@ services:
     ports:
       - "127.0.0.1:${OTEL_SDK_PORT:-18102}:8000"
 
+  otel-sdk-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+    ports:
+      - "127.0.0.1:${OTEL_SDK_EXT_PORT:-18107}:8000"
+
   otel-http:
     <<: *common
     working_dir: /app
@@ -129,6 +143,21 @@ services:
       OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
     ports:
       - "127.0.0.1:${OTEL_HTTP_OTLP_EXT_PORT:-18105}:8000"
+
+  otel-minimal-null-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+      OTEL_MINIMAL_HTTP: "true"
+    ports:
+      - "127.0.0.1:${OTEL_MINIMAL_NULL_EXT_PORT:-18108}:8000"
 
   otel-minimal-otlp-ext:
     <<: *common
