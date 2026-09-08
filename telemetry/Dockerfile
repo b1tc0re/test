@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:1.12.7-php8.4-trixie
+FROM dunglas/frankenphp:1.12.7-php8.4-trixie AS base
 
 ARG LARAVEL_SKELETON_VERSION=13.10.1
 ARG LARAVEL_FRAMEWORK_VERSION=13.30.1
@@ -35,3 +35,6 @@ RUN cp -a /app /app-pure \
 EXPOSE 8000
 
 CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000", "--workers=2", "--max-requests=1000000"]
+
+FROM base AS protobuf-ext
+RUN install-php-extensions protobuf
