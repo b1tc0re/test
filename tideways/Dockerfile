@@ -29,7 +29,8 @@ RUN composer create-project --no-interaction --prefer-dist \
     && printf "\nrequire __DIR__.'/benchmark.php';\n" >> routes/web.php \
     && mkdir -p app/Http/Middleware \
     && cp /tmp/TidewaysBenchmarkMiddleware.php app/Http/Middleware/TidewaysBenchmarkMiddleware.php \
-    && cp /tmp/benchmark-bootstrap.php bootstrap/app.php
+    && cp /tmp/benchmark-bootstrap.php bootstrap/app.php \
+    && composer dump-autoload --no-dev --classmap-authoritative --no-interaction
 
 EXPOSE 8000
 
