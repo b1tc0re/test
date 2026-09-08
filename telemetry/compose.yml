@@ -1,0 +1,89 @@
+name: keepsuit-telemetry-benchmark
+
+x-common: &common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  cpus: ${SERVER_CPUS:-2.0}
+  mem_limit: ${SERVER_MEMORY:-512m}
+  pids_limit: 512
+  restart: "no"
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/up >/dev/null || exit 1"]
+    interval: 1s
+    timeout: 1s
+    retries: 60
+    start_period: 2s
+
+x-base-env: &base-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  LOG_CHANNEL: stderr
+  CACHE_STORE: array
+  SESSION_DRIVER: array
+  QUEUE_CONNECTION: sync
+  DB_CONNECTION: sqlite
+
+  OTEL_SERVICE_NAME: keepsuit-telemetry-benchmark
+  OTEL_TRACES_EXPORTER: "null"
+  OTEL_METRICS_EXPORTER: "null"
+  OTEL_LOGS_EXPORTER: "null"
+  OTEL_WORKER_MODE_FLUSH_AFTER_EACH_ITERATION: "false"
+  OTEL_WORKER_MODE_COLLECT_INTERVAL: "60"
+
+  OTEL_INSTRUMENTATION_HTTP_CLIENT: "false"
+  OTEL_INSTRUMENTATION_QUERY: "false"
+  OTEL_INSTRUMENTATION_REDIS: "false"
+  OTEL_INSTRUMENTATION_QUEUE: "false"
+  OTEL_INSTRUMENTATION_CACHE: "false"
+  OTEL_INSTRUMENTATION_EVENT: "false"
+  OTEL_INSTRUMENTATION_VIEW: "false"
+  OTEL_INSTRUMENTATION_LIVEWIRE: "false"
+  OTEL_INSTRUMENTATION_CONSOLE: "false"
+  OTEL_INSTRUMENTATION_SCOUT: "false"
+
+services:
+  pure:
+    <<: *common
+    working_dir: /app-pure
+    environment:
+      <<: *base-env
+    ports:
+      - "127.0.0.1:${PURE_PORT:-18100}:8000"
+
+  otel-disabled:
+    <<: *common
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "true"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+    ports:
+      - "127.0.0.1:${OTEL_DISABLED_PORT:-18101}:8000"
+
+  otel-sdk:
+    <<: *common
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+    ports:
+      - "127.0.0.1:${OTEL_SDK_PORT:-18102}:8000"
+
+  otel-http:
+    <<: *common
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+    ports:
+      - "127.0.0.1:${OTEL_HTTP_PORT:-18103}:8000"
+
+  wrk:
+    image: williamyeh/wrk
+    profiles: ["benchmark"]
+    cpus: ${WRK_CPUS:-1.0}
+    mem_limit: ${WRK_MEMORY:-256m}
+    pids_limit: 256
