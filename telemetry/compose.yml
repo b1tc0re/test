@@ -1,0 +1,189 @@
+name: keepsuit-telemetry-benchmark
+
+x-common: &common
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: base
+  cpus: ${SERVER_CPUS:-2.0}
+  mem_limit: ${SERVER_MEMORY:-512m}
+  pids_limit: 512
+  restart: "no"
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/up >/dev/null || exit 1"]
+    interval: 1s
+    timeout: 1s
+    retries: 60
+    start_period: 2s
+
+x-base-env: &base-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  LOG_CHANNEL: stderr
+  CACHE_STORE: array
+  SESSION_DRIVER: array
+  QUEUE_CONNECTION: sync
+  DB_CONNECTION: sqlite
+
+  OTEL_SERVICE_NAME: keepsuit-telemetry-benchmark
+  OTEL_TRACES_EXPORTER: "null"
+  OTEL_METRICS_EXPORTER: "null"
+  OTEL_LOGS_EXPORTER: "null"
+  OTEL_WORKER_MODE_FLUSH_AFTER_EACH_ITERATION: "false"
+  OTEL_WORKER_MODE_COLLECT_INTERVAL: "60"
+
+  OTEL_INSTRUMENTATION_HTTP_CLIENT: "false"
+  OTEL_INSTRUMENTATION_QUERY: "false"
+  OTEL_INSTRUMENTATION_REDIS: "false"
+  OTEL_INSTRUMENTATION_QUEUE: "false"
+  OTEL_INSTRUMENTATION_CACHE: "false"
+  OTEL_INSTRUMENTATION_EVENT: "false"
+  OTEL_INSTRUMENTATION_VIEW: "false"
+  OTEL_INSTRUMENTATION_LIVEWIRE: "false"
+  OTEL_INSTRUMENTATION_CONSOLE: "false"
+  OTEL_INSTRUMENTATION_SCOUT: "false"
+
+services:
+  collector:
+    image: otel/opentelemetry-collector:0.160.0
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./collector.yml:/etc/otelcol/config.yml:ro
+    cpus: ${COLLECTOR_CPUS:-1.0}
+    mem_limit: ${COLLECTOR_MEMORY:-256m}
+    pids_limit: 256
+    restart: "no"
+
+  pure:
+    <<: *common
+    working_dir: /app-pure
+    environment:
+      <<: *base-env
+    ports:
+      - "127.0.0.1:${PURE_PORT:-18100}:8000"
+
+  otel-disabled:
+    <<: *common
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "true"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+    ports:
+      - "127.0.0.1:${OTEL_DISABLED_PORT:-18101}:8000"
+
+  otel-sdk:
+    <<: *common
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+    ports:
+      - "127.0.0.1:${OTEL_SDK_PORT:-18102}:8000"
+
+  otel-sdk-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+    ports:
+      - "127.0.0.1:${OTEL_SDK_EXT_PORT:-18107}:8000"
+
+  otel-http:
+    <<: *common
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+    ports:
+      - "127.0.0.1:${OTEL_HTTP_PORT:-18103}:8000"
+
+  otel-http-otlp-php:
+    <<: *common
+    working_dir: /app
+    depends_on:
+      - collector
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
+      OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
+    ports:
+      - "127.0.0.1:${OTEL_HTTP_OTLP_PHP_PORT:-18104}:8000"
+
+  otel-http-otlp-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    depends_on:
+      - collector
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
+      OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
+    ports:
+      - "127.0.0.1:${OTEL_HTTP_OTLP_EXT_PORT:-18105}:8000"
+
+  otel-minimal-null-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+      OTEL_MINIMAL_HTTP: "true"
+    ports:
+      - "127.0.0.1:${OTEL_MINIMAL_NULL_EXT_PORT:-18108}:8000"
+
+  otel-minimal-otlp-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    depends_on:
+      - collector
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+      OTEL_MINIMAL_HTTP: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
+      OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
+    ports:
+      - "127.0.0.1:${OTEL_MINIMAL_OTLP_EXT_PORT:-18106}:8000"
+
+  wrk:
+    image: williamyeh/wrk
+    profiles: ["benchmark"]
+    cpus: ${WRK_CPUS:-1.0}
+    mem_limit: ${WRK_MEMORY:-256m}
+    pids_limit: 256

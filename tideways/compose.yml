@@ -1,0 +1,107 @@
+name: tideways-telemetry-benchmark
+
+x-common: &common
+  cpus: ${SERVER_CPUS:-2.0}
+  mem_limit: ${SERVER_MEMORY:-512m}
+  pids_limit: 512
+  restart: "no"
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/up >/dev/null || exit 1"]
+    interval: 1s
+    timeout: 1s
+    retries: 60
+    start_period: 2s
+
+x-base-env: &base-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  LOG_CHANNEL: stderr
+  CACHE_STORE: array
+  SESSION_DRIVER: array
+  QUEUE_CONNECTION: sync
+  DB_CONNECTION: sqlite
+
+services:
+  pure:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    working_dir: /app
+    environment:
+      <<: *base-env
+      TIDEWAYS_BENCH_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${PURE_PORT:-18200}:8000"
+
+  tideways-loaded:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tideways
+    working_dir: /app
+    environment:
+      <<: *base-env
+      TIDEWAYS_BENCH_ENABLED: "false"
+      TIDEWAYS_CONNECTION: tcp://tideways-daemon:9135
+      TIDEWAYS_APIKEY: benchmark-invalid-key
+    ports:
+      - "127.0.0.1:${TIDEWAYS_LOADED_PORT:-18201}:8000"
+
+  tideways-monitor:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tideways
+    working_dir: /app
+    depends_on:
+      - tideways-daemon
+    environment:
+      <<: *base-env
+      TIDEWAYS_BENCH_ENABLED: "true"
+      TIDEWAYS_BENCH_SAMPLE_RATE: "0"
+      TIDEWAYS_CONNECTION: tcp://tideways-daemon:9135
+      TIDEWAYS_APIKEY: benchmark-invalid-key
+    ports:
+      - "127.0.0.1:${TIDEWAYS_MONITOR_PORT:-18202}:8000"
+
+  tideways-trace:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tideways
+    working_dir: /app
+    depends_on:
+      - tideways-daemon
+    environment:
+      <<: *base-env
+      TIDEWAYS_BENCH_ENABLED: "true"
+      TIDEWAYS_BENCH_SAMPLE_RATE: "100"
+      TIDEWAYS_CONNECTION: tcp://tideways-daemon:9135
+      TIDEWAYS_APIKEY: benchmark-invalid-key
+    ports:
+      - "127.0.0.1:${TIDEWAYS_TRACE_PORT:-18203}:8000"
+
+  tideways-daemon:
+    image: ghcr.io/tideways/daemon:latest
+    cpus: ${DAEMON_CPUS:-1.0}
+    mem_limit: ${DAEMON_MEMORY:-256m}
+    pids_limit: 256
+    restart: "no"
+    networks:
+      - default
+
+  wrk:
+    image: williamyeh/wrk
+    profiles: ["benchmark"]
+    cpus: ${WRK_CPUS:-1.0}
+    mem_limit: ${WRK_MEMORY:-256m}
+    pids_limit: 256
+
+networks:
+  default:
+    internal: true
