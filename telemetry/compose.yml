@@ -130,6 +130,28 @@ services:
     ports:
       - "127.0.0.1:${OTEL_HTTP_OTLP_EXT_PORT:-18105}:8000"
 
+  otel-minimal-otlp-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    depends_on:
+      - collector
+    environment:
+      <<: *base-env
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "false"
+      OTEL_MINIMAL_HTTP: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
+      OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
+    ports:
+      - "127.0.0.1:${OTEL_MINIMAL_OTLP_EXT_PORT:-18106}:8000"
+
   wrk:
     image: williamyeh/wrk
     profiles: ["benchmark"]
