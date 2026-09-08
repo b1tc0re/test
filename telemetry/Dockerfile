@@ -28,6 +28,7 @@ RUN composer create-project --no-interaction --prefer-dist \
     && php artisan key:generate --force \
     && cp /tmp/benchmark-route.php routes/benchmark.php \
     && printf "\nrequire __DIR__.'/benchmark.php';\n" >> routes/web.php \
+    && mkdir -p app/Http/Middleware \
     && cp /tmp/MinimalTelemetryMiddleware.php app/Http/Middleware/MinimalTelemetryMiddleware.php \
     && cp /tmp/benchmark-bootstrap.php bootstrap/app.php
 
