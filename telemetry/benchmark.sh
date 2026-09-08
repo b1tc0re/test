@@ -10,7 +10,7 @@ WARMUP_THREADS="${WARMUP_THREADS:-2}"
 WARMUP_CONNECTIONS="${WARMUP_CONNECTIONS:-50}"
 COOLDOWN="${COOLDOWN:-2}"
 
-variants=(pure otel-disabled otel-sdk otel-http)
+variants=(pure otel-disabled otel-sdk otel-http otel-http-otlp-php otel-http-otlp-ext)
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 result_dir="results/${stamp}"
 mkdir -p "$result_dir"
@@ -54,16 +54,26 @@ validate_state() {
       grep -q '"sdk_disabled":true' <<<"$state"
       ;;
     otel-sdk)
-      grep -q '"package_installed":true' <<<"$state"
-      grep -q '"provider_loaded":true' <<<"$state"
       grep -q '"sdk_disabled":false' <<<"$state"
       grep -q '"http_server_enabled":false' <<<"$state"
+      grep -q '"traces_exporter":"null"' <<<"$state"
       ;;
     otel-http)
-      grep -q '"package_installed":true' <<<"$state"
-      grep -q '"provider_loaded":true' <<<"$state"
       grep -q '"sdk_disabled":false' <<<"$state"
       grep -q '"http_server_enabled":true' <<<"$state"
+      grep -q '"traces_exporter":"null"' <<<"$state"
+      ;;
+    otel-http-otlp-php)
+      grep -q '"sdk_disabled":false' <<<"$state"
+      grep -q '"http_server_enabled":true' <<<"$state"
+      grep -q '"traces_exporter":"otlp"' <<<"$state"
+      grep -q '"protobuf_extension":false' <<<"$state"
+      ;;
+    otel-http-otlp-ext)
+      grep -q '"sdk_disabled":false' <<<"$state"
+      grep -q '"http_server_enabled":true' <<<"$state"
+      grep -q '"traces_exporter":"otlp"' <<<"$state"
+      grep -q '"protobuf_extension":true' <<<"$state"
       ;;
   esac
 }
@@ -87,6 +97,11 @@ run_variant() {
   echo
   echo "=== round ${round}: ${service} ==="
   compose stop "${variants[@]}" >/dev/null 2>&1 || true
+
+  if [[ "$service" == otel-http-otlp-* ]]; then
+    compose up -d collector
+  fi
+
   compose up -d --force-recreate "$service"
   wait_ready "$service"
   validate_state "$service"
@@ -127,8 +142,9 @@ rotate_order() {
   printf '%s\n' "${ordered[@]}"
 }
 
-echo "Building telemetry benchmark image..."
-compose build --pull pure otel-disabled otel-sdk otel-http
+echo "Building telemetry benchmark images..."
+compose build --pull "${variants[@]}"
+compose pull collector
 
 printf 'round,variant,rps,avg_latency,p99_latency\n' > "${result_dir}/results.csv"
 
@@ -140,17 +156,22 @@ for round in $(seq 1 "$ROUNDS"); do
 done
 
 pure_avg="$(average_rps pure)"
+http_avg="$(average_rps otel-http)"
 
 {
   echo
   echo "=== summary ==="
-  printf '%-16s %12s %14s\n' "variant" "avg RPS" "vs pure"
-  printf '%-16s %12s %14s\n' "----------------" "------------" "--------------"
+  printf '%-22s %12s %14s %16s\n' "variant" "avg RPS" "vs pure" "vs http-null"
+  printf '%-22s %12s %14s %16s\n' "----------------------" "------------" "--------------" "----------------"
 
   for service in "${variants[@]}"; do
     avg="$(average_rps "$service")"
-    delta="$(awk -v pure="$pure_avg" -v avg="$avg" 'BEGIN {printf "%+.2f%%", ((avg/pure)-1)*100}')"
-    printf '%-16s %12s %14s\n' "$service" "$avg" "$delta"
+    delta_pure="$(awk -v pure="$pure_avg" -v avg="$avg" 'BEGIN {printf "%+.2f%%", ((avg/pure)-1)*100}')"
+    delta_http="-"
+    if [[ "$service" == otel-http* ]]; then
+      delta_http="$(awk -v http="$http_avg" -v avg="$avg" 'BEGIN {printf "%+.2f%%", ((avg/http)-1)*100}')"
+    fi
+    printf '%-22s %12s %14s %16s\n' "$service" "$avg" "$delta_pure" "$delta_http"
   done
 
   echo "raw results: ${result_dir}"
