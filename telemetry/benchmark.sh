@@ -56,12 +56,12 @@ validate_state() {
     otel-sdk)
       grep -q '"sdk_disabled":false' <<<"$state"
       grep -q '"http_server_enabled":false' <<<"$state"
-      grep -q '"traces_exporter":"null"' <<<"$state"
+      grep -q '"traces_exporter":null' <<<"$state"
       ;;
     otel-http)
       grep -q '"sdk_disabled":false' <<<"$state"
       grep -q '"http_server_enabled":true' <<<"$state"
-      grep -q '"traces_exporter":"null"' <<<"$state"
+      grep -q '"traces_exporter":null' <<<"$state"
       ;;
     otel-http-otlp-php)
       grep -q '"sdk_disabled":false' <<<"$state"
