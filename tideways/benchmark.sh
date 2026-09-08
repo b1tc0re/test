@@ -9,6 +9,7 @@ CONNECTIONS="${CONNECTIONS:-100}"
 WARMUP_THREADS="${WARMUP_THREADS:-2}"
 WARMUP_CONNECTIONS="${WARMUP_CONNECTIONS:-50}"
 COOLDOWN="${COOLDOWN:-2}"
+KEEP_ON_FAILURE="${KEEP_ON_FAILURE:-1}"
 
 if [[ -n "${VARIANTS:-}" ]]; then
   read -r -a variants <<<"$VARIANTS"
@@ -24,10 +25,26 @@ compose() {
   docker compose -f compose.yml "$@"
 }
 
-cleanup() {
+on_exit() {
+  local status=$?
+
+  if [[ $status -ne 0 ]]; then
+    compose ps --all > "${result_dir}/docker-compose-ps.txt" 2>&1 || true
+    compose logs --no-color > "${result_dir}/docker-compose.log" 2>&1 || true
+
+    echo >&2
+    echo "Benchmark failed (exit=${status})." >&2
+    echo "Logs saved to: ${result_dir}/docker-compose.log" >&2
+
+    if [[ "$KEEP_ON_FAILURE" == "1" ]]; then
+      echo "Containers preserved. Inspect with: docker compose -f compose.yml logs --no-color <service>" >&2
+      return
+    fi
+  fi
+
   compose down --remove-orphans >/dev/null 2>&1 || true
 }
-trap cleanup EXIT
+trap on_exit EXIT
 
 wait_ready() {
   local service="$1"
