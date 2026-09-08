@@ -13,7 +13,7 @@ COOLDOWN="${COOLDOWN:-2}"
 if [[ -n "${VARIANTS:-}" ]]; then
   read -r -a variants <<<"$VARIANTS"
 else
-  variants=(pure otel-disabled otel-sdk otel-http otel-http-otlp-php otel-http-otlp-ext otel-minimal-otlp-ext)
+  variants=(pure otel-disabled otel-sdk otel-sdk-ext otel-http otel-http-otlp-php otel-http-otlp-ext otel-minimal-null-ext otel-minimal-otlp-ext)
 fi
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -62,6 +62,13 @@ validate_state() {
       grep -q '"sdk_disabled":false' <<<"$state"
       grep -q '"http_server_enabled":false' <<<"$state"
       grep -q '"traces_exporter":null' <<<"$state"
+      grep -q '"protobuf_extension":false' <<<"$state"
+      ;;
+    otel-sdk-ext)
+      grep -q '"sdk_disabled":false' <<<"$state"
+      grep -q '"http_server_enabled":false' <<<"$state"
+      grep -q '"traces_exporter":null' <<<"$state"
+      grep -q '"protobuf_extension":true' <<<"$state"
       ;;
     otel-http)
       grep -q '"sdk_disabled":false' <<<"$state"
@@ -78,6 +85,12 @@ validate_state() {
       grep -q '"sdk_disabled":false' <<<"$state"
       grep -q '"http_server_enabled":true' <<<"$state"
       grep -q '"traces_exporter":"otlp"' <<<"$state"
+      grep -q '"protobuf_extension":true' <<<"$state"
+      ;;
+    otel-minimal-null-ext)
+      grep -q '"sdk_disabled":false' <<<"$state"
+      grep -q '"http_server_enabled":false' <<<"$state"
+      grep -q '"traces_exporter":null' <<<"$state"
       grep -q '"protobuf_extension":true' <<<"$state"
       ;;
     otel-minimal-otlp-ext)
