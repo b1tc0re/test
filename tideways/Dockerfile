@@ -37,4 +37,5 @@ CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000", "--
 
 FROM base AS tideways
 COPY --from=ghcr.io/tideways/php:latest /tideways/ /tideways/
-RUN docker-php-ext-enable --ini-name tideways.ini "$(php /tideways/get-ext-path.php)"
+RUN docker-php-ext-enable --ini-name tideways.ini "$(php /tideways/get-ext-path.php)" \
+    && printf "tideways.auto_start=0\n" >> /usr/local/etc/php/conf.d/tideways.ini
