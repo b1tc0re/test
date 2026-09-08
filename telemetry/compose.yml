@@ -4,6 +4,7 @@ x-common: &common
   build:
     context: .
     dockerfile: Dockerfile
+    target: base
   cpus: ${SERVER_CPUS:-2.0}
   mem_limit: ${SERVER_MEMORY:-512m}
   pids_limit: 512
@@ -42,7 +43,24 @@ x-base-env: &base-env
   OTEL_INSTRUMENTATION_CONSOLE: "false"
   OTEL_INSTRUMENTATION_SCOUT: "false"
 
+x-otlp-env: &otlp-env
+  OTEL_TRACES_EXPORTER: otlp
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_EXPORTER_OTLP_MAX_RETRIES: "0"
+  OTEL_EXPORTER_OTLP_TIMEOUT: "2000"
+
 services:
+  collector:
+    image: otel/opentelemetry-collector:0.160.0
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./collector.yml:/etc/otelcol/config.yml:ro
+    cpus: ${COLLECTOR_CPUS:-1.0}
+    mem_limit: ${COLLECTOR_MEMORY:-256m}
+    pids_limit: 256
+    restart: "no"
+
   pure:
     <<: *common
     working_dir: /app-pure
@@ -80,6 +98,34 @@ services:
       OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
     ports:
       - "127.0.0.1:${OTEL_HTTP_PORT:-18103}:8000"
+
+  otel-http-otlp-php:
+    <<: *common
+    working_dir: /app
+    depends_on:
+      - collector
+    environment:
+      <<: [*base-env, *otlp-env]
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+    ports:
+      - "127.0.0.1:${OTEL_HTTP_OTLP_PHP_PORT:-18104}:8000"
+
+  otel-http-otlp-ext:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: protobuf-ext
+    working_dir: /app
+    depends_on:
+      - collector
+    environment:
+      <<: [*base-env, *otlp-env]
+      OTEL_SDK_DISABLED: "false"
+      OTEL_INSTRUMENTATION_HTTP_SERVER: "true"
+    ports:
+      - "127.0.0.1:${OTEL_HTTP_OTLP_EXT_PORT:-18105}:8000"
 
   wrk:
     image: williamyeh/wrk
