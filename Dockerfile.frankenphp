@@ -13,7 +13,10 @@ COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /app
 
-RUN composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-interaction \
+# The official FrankenPHP image ships a default /app/public/index.php.
+# Remove it so Composer can create a clean Laravel project at /app.
+RUN rm -rf /app/* \
+    && composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-interaction \
     && composer require \
         laravel/octane:^2.17 \
         spiral/roadrunner-http:^3.3 \
