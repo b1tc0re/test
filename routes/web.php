@@ -100,6 +100,7 @@ Route::get('/bench/runtime/probe', static fn () => response()->json([
     'worker_id' => BenchmarkStores::workerId(),
     'cache_backend' => BenchmarkStores::runtimeCacheBackend(),
     'sapi' => PHP_SAPI,
+    'zts' => (bool) PHP_ZTS,
     'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? null,
 ]));
 
