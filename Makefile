@@ -6,7 +6,7 @@ MODE ?= all
 OPS_LIST ?= 1 10 100 1000
 SIZE ?= 1024
 
-.PHONY: up down logs verify bench bench-full microbench cleanup matrix versions
+.PHONY: up down logs verify tiered-proof bench bench-full microbench cleanup matrix versions
 
 up:
 	docker compose build app bench
@@ -20,6 +20,9 @@ logs:
 
 verify:
 	docker compose run --rm bench bash /scripts/verify.sh http://app:8080
+
+tiered-proof:
+	docker compose run --rm bench bash /scripts/tiered-proof.sh http://app:8080
 
 bench:
 	docker compose run --rm \
