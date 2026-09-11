@@ -22,7 +22,10 @@ kv:
     driver: redis
     config:
       addrs:
-        - "redis:6379"
+        - "${REDIS_HOST}:${REDIS_PORT}"
+      username: "${REDIS_USERNAME}"
+      password: "${REDIS_PASSWORD}"
+      db: ${REDIS_DB}
 
 logs:
   mode: production
