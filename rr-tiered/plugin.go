@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 	kv "github.com/roadrunner-server/api/v4/plugins/v1/kv"
 	"go.uber.org/zap"
@@ -60,13 +63,16 @@ func (c *Config) defaults() {
 		c.WriteTimeout = 3 * time.Second
 	}
 	if c.WriteFallback == "" {
-		c.WriteFallback = "sync"
+		c.WriteFallback = "block"
 	}
 }
 
 type Plugin struct {
 	cfg Configurer
 	log *zap.Logger
+
+	mu     sync.RWMutex
+	driver *Driver
 }
 
 func (p *Plugin) Init(log Logger, cfg Configurer) error {
@@ -106,25 +112,41 @@ func (p *Plugin) KvFromConfig(key string) (kv.Storage, error) {
 		return nil, fmt.Errorf("tiered: redis ping failed: %w", err)
 	}
 
+	perShard := max(1, (cfg.QueueSize+cfg.Writers-1)/cfg.Writers)
 	d := &Driver{
-		cfg:     cfg,
-		log:     p.log,
-		redis:   client,
-		entries: make(map[string]entry),
-		writes:  make(chan writeOp, cfg.QueueSize),
-		stopCh:  make(chan struct{}),
-		stopped: make(chan struct{}),
+		cfg:         cfg,
+		log:         p.log,
+		redis:       client,
+		entries:     make(map[string]entry),
+		writeShards: make([]chan writeOp, cfg.Writers),
+		stopCh:      make(chan struct{}),
+		stopped:     make(chan struct{}),
 	}
 	for i := 0; i < cfg.Writers; i++ {
+		d.writeShards[i] = make(chan writeOp, perShard)
 		d.wg.Add(1)
-		go d.writer()
+		go d.writer(i)
 	}
 	go func() {
 		d.wg.Wait()
 		close(d.stopped)
 	}()
 
+	p.mu.Lock()
+	p.driver = d
+	p.mu.Unlock()
+
 	return d, nil
+}
+
+func (p *Plugin) MetricsCollector() []prometheus.Collector {
+	p.mu.RLock()
+	d := p.driver
+	p.mu.RUnlock()
+	if d == nil {
+		return nil
+	}
+	return d.metricsCollectors()
 }
 
 type entry struct {
@@ -147,11 +169,22 @@ type Driver struct {
 	mu      sync.RWMutex
 	entries map[string]entry
 
-	writes  chan writeOp
-	wg      sync.WaitGroup
-	stopCh  chan struct{}
-	stopped chan struct{}
-	once    sync.Once
+	writeShards []chan writeOp
+	wg          sync.WaitGroup
+	stopCh      chan struct{}
+	stopped     chan struct{}
+	once        sync.Once
+	closing     atomic.Bool
+
+	l1Hits       atomic.Uint64
+	l1Misses     atomic.Uint64
+	redisReads   atomic.Uint64
+	queued       atomic.Uint64
+	completed    atomic.Uint64
+	failed       atomic.Uint64
+	backpressure atomic.Uint64
+	dropped      atomic.Uint64
+	queuePeak    atomic.Uint64
 }
 
 func (d *Driver) Has(keys ...string) (map[string]bool, error) {
@@ -179,9 +212,12 @@ func (d *Driver) Get(key string) ([]byte, error) {
 		return nil, errors.New("tiered: empty key")
 	}
 	if value, ok := d.getL1(key); ok {
+		d.l1Hits.Add(1)
 		return value, nil
 	}
 
+	d.l1Misses.Add(1)
+	d.redisReads.Add(1)
 	ctx := context.Background()
 	value, err := d.redis.Get(ctx, key).Bytes()
 	if err != nil {
@@ -310,6 +346,7 @@ func (d *Driver) Delete(keys ...string) error {
 
 func (d *Driver) Stop() {
 	d.once.Do(func() {
+		d.closing.Store(true)
 		close(d.stopCh)
 		<-d.stopped
 		_ = d.redis.Close()
@@ -339,30 +376,51 @@ func (d *Driver) setL1(key string, value []byte, expiresAt time.Time) {
 }
 
 func (d *Driver) enqueue(op writeOp) error {
+	if d.closing.Load() {
+		return errors.New("tiered: driver is stopping")
+	}
+
+	shard := d.shardFor(op.key)
+	queue := d.writeShards[shard]
 	select {
-	case d.writes <- op:
+	case queue <- op:
+		d.queued.Add(1)
+		d.updateQueuePeak()
 		return nil
 	default:
+		d.backpressure.Add(1)
 		if d.cfg.WriteFallback == "drop" {
+			d.dropped.Add(1)
 			d.log.Warn("tiered write queue full; dropping Redis write", zap.String("key", op.key))
 			return nil
 		}
-		// Reliability-first fallback: if the queue is saturated, perform the
-		// Redis write synchronously instead of silently losing cache coherence.
-		return d.writeRedis(op)
+
+		// Blocking preserves per-key FIFO ordering. A synchronous direct Redis
+		// fallback could overtake older queued writes for the same key.
+		queue <- op
+		d.queued.Add(1)
+		d.updateQueuePeak()
+		return nil
 	}
 }
 
-func (d *Driver) writer() {
+func (d *Driver) shardFor(key string) int {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(key))
+	return int(h.Sum32() % uint32(len(d.writeShards)))
+}
+
+func (d *Driver) writer(shard int) {
 	defer d.wg.Done()
+	queue := d.writeShards[shard]
 	for {
 		select {
-		case op := <-d.writes:
+		case op := <-queue:
 			d.writeRedisLogged(op, "tiered async Redis write failed")
 		case <-d.stopCh:
 			for {
 				select {
-				case op := <-d.writes:
+				case op := <-queue:
 					d.writeRedisLogged(op, "tiered Redis shutdown flush failed")
 				default:
 					return
@@ -374,8 +432,11 @@ func (d *Driver) writer() {
 
 func (d *Driver) writeRedisLogged(op writeOp, message string) {
 	if err := d.writeRedis(op); err != nil {
+		d.failed.Add(1)
 		d.log.Warn(message, zap.String("key", op.key), zap.Error(err))
+		return
 	}
+	d.completed.Add(1)
 }
 
 func (d *Driver) writeRedis(op writeOp) error {
@@ -388,6 +449,60 @@ func (d *Driver) writeRedis(op writeOp) error {
 		ttl = time.Millisecond
 	}
 	return d.redis.Set(ctx, op.key, op.value, ttl).Err()
+}
+
+func (d *Driver) queueDepth() int {
+	total := 0
+	for _, queue := range d.writeShards {
+		total += len(queue)
+	}
+	return total
+}
+
+func (d *Driver) queueCapacity() int {
+	total := 0
+	for _, queue := range d.writeShards {
+		total += cap(queue)
+	}
+	return total
+}
+
+func (d *Driver) updateQueuePeak() {
+	depth := uint64(d.queueDepth())
+	for {
+		peak := d.queuePeak.Load()
+		if depth <= peak || d.queuePeak.CompareAndSwap(peak, depth) {
+			return
+		}
+	}
+}
+
+func (d *Driver) l1Items() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.entries)
+}
+
+func (d *Driver) metricsCollectors() []prometheus.Collector {
+	counter := func(name, help string, value *atomic.Uint64) prometheus.Collector {
+		return prometheus.NewCounterFunc(prometheus.CounterOpts{Name: name, Help: help}, func() float64 {
+			return float64(value.Load())
+		})
+	}
+	return []prometheus.Collector{
+		counter("rr_tiered_l1_hits_total", "Tiered cache L1 hits.", &d.l1Hits),
+		counter("rr_tiered_l1_misses_total", "Tiered cache L1 misses.", &d.l1Misses),
+		counter("rr_tiered_redis_reads_total", "Redis reads caused by L1 misses.", &d.redisReads),
+		counter("rr_tiered_writes_queued_total", "Writes accepted into async Redis queues.", &d.queued),
+		counter("rr_tiered_writes_completed_total", "Async Redis writes completed successfully.", &d.completed),
+		counter("rr_tiered_writes_failed_total", "Async Redis writes that failed.", &d.failed),
+		counter("rr_tiered_write_backpressure_total", "Writes that encountered a full shard queue.", &d.backpressure),
+		counter("rr_tiered_writes_dropped_total", "Writes dropped because write_fallback=drop.", &d.dropped),
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "rr_tiered_write_queue_depth", Help: "Current total async write queue depth."}, func() float64 { return float64(d.queueDepth()) }),
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "rr_tiered_write_queue_capacity", Help: "Total async write queue capacity."}, func() float64 { return float64(d.queueCapacity()) }),
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "rr_tiered_write_queue_peak", Help: "Peak observed async write queue depth."}, func() float64 { return float64(d.queuePeak.Load()) }),
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "rr_tiered_l1_items", Help: "Current number of entries in L1."}, func() float64 { return float64(d.l1Items()) }),
+	}
 }
 
 func parseTimeout(timeout string, l1TTL time.Duration) (l1ExpiresAt time.Time, redisExpiresAt time.Time, persist bool, err error) {
