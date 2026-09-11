@@ -3,8 +3,13 @@ FROM composer:2 AS composer
 FROM php:8.4-cli-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl git unzip $PHPIZE_DEPS \
-    && docker-php-ext-install pcntl sockets opcache \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        git \
+        unzip \
+        libsqlite3-dev \
+        $PHPIZE_DEPS \
+    && docker-php-ext-install pcntl sockets opcache pdo_sqlite \
     && pecl install protobuf \
     && docker-php-ext-enable protobuf \
     && rm -rf /var/lib/apt/lists/*
