@@ -43,7 +43,7 @@ microbench:
 		bench bash /scripts/microbench.sh http://app:8080
 
 cleanup:
-	docker compose run --rm bench sh -lc 'curl -fsS -X POST http://app:8080/bench/cleanup | jq .'
+	docker compose run --rm bench sh -lc 'curl -fsS http://app:8080/bench/cleanup | jq .'
 
 matrix:
 	WORKERS_LIST="$(WORKERS_LIST)" DURATION="$(DURATION)" THREADS="$(THREADS)" CONNECTIONS="$(CONNECTIONS)" SIZES="$(SIZES)" MODE="$(MODE)" bash ./scripts/matrix.sh
