@@ -15,7 +15,7 @@ $normalizeSize = static function (string $size): int {
 $normalizeOps = static function (string $ops): int {
     $ops = (int) $ops;
 
-    abort_unless(in_array($ops, [1, 10, 100, 1000], true), 404);
+    abort_unless(in_array($ops, [1, 5, 10, 100, 1000], true), 404);
 
     return $ops;
 };
@@ -94,6 +94,46 @@ $microRead = static function (string $backend, int $ops, int $size): string {
 };
 
 Route::get('/bench/plain', static fn () => response('OK', 200, ['Content-Type' => 'text/plain']));
+
+Route::get('/bench/runtime/probe', static fn () => response()->json([
+    'pid' => getmypid(),
+    'worker_id' => BenchmarkStores::workerId(),
+    'cache_backend' => BenchmarkStores::runtimeCacheBackend(),
+    'sapi' => PHP_SAPI,
+    'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? null,
+]));
+
+Route::get('/bench/runtime/cache/seed/{size}', static function (string $size) use ($normalizeSize) {
+    $bytes = $normalizeSize($size);
+    BenchmarkStores::runtimeCacheSet("runtime-payload:{$bytes}", BenchmarkStores::payload($bytes));
+
+    return response()->json([
+        'size' => $bytes,
+        'backend' => BenchmarkStores::runtimeCacheBackend(),
+    ]);
+});
+
+Route::get('/bench/runtime/cache/read/{ops}/{size}', static function (string $ops, string $size) use ($normalizeOps, $normalizeSize) {
+    $count = $normalizeOps($ops);
+    $bytes = $normalizeSize($size);
+    $key = "runtime-payload:{$bytes}";
+    $total = 0;
+
+    for ($i = 0; $i < $count; $i++) {
+        $value = BenchmarkStores::runtimeCacheGet($key);
+        abort_if($value === null, 500, 'Runtime cache benchmark key is not seeded');
+        $total += strlen($value);
+    }
+
+    return response((string) $total, 200, ['Content-Type' => 'text/plain']);
+});
+
+Route::get('/bench/runtime/cache/write/{size}', static function (string $size) use ($normalizeSize) {
+    $bytes = $normalizeSize($size);
+    BenchmarkStores::runtimeCacheSet("runtime-payload:{$bytes}", BenchmarkStores::payload($bytes));
+
+    return response('OK', 200, ['Content-Type' => 'text/plain']);
+});
 
 Route::get('/bench/pid', static fn () => response()->json([
     'pid' => getmypid(),
