@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -108,13 +107,13 @@ func (p *Plugin) KvFromConfig(key string) (kv.Storage, error) {
 	}
 
 	d := &Driver{
-		cfg:      cfg,
-		log:      p.log,
-		redis:    client,
-		entries:  make(map[string]entry),
-		writes:   make(chan writeOp, cfg.QueueSize),
-		stopCh:   make(chan struct{}),
-		stopped:  make(chan struct{}),
+		cfg:     cfg,
+		log:     p.log,
+		redis:   client,
+		entries: make(map[string]entry),
+		writes:  make(chan writeOp, cfg.QueueSize),
+		stopCh:  make(chan struct{}),
+		stopped: make(chan struct{}),
 	}
 	for i := 0; i < cfg.Writers; i++ {
 		d.wg.Add(1)
@@ -131,14 +130,13 @@ func (p *Plugin) KvFromConfig(key string) (kv.Storage, error) {
 type entry struct {
 	value     []byte
 	expiresAt time.Time
-	persist   bool
 }
 
 type writeOp struct {
-	key       string
-	value     []byte
-	expiresAt time.Time
-	persist   bool
+	key            string
+	value          []byte
+	redisExpiresAt time.Time
+	persist        bool
 }
 
 type Driver struct {
@@ -154,11 +152,6 @@ type Driver struct {
 	stopCh  chan struct{}
 	stopped chan struct{}
 	once    sync.Once
-
-	queued   atomic.Uint64
-	written  atomic.Uint64
-	failed   atomic.Uint64
-	fallback atomic.Uint64
 }
 
 func (d *Driver) Has(keys ...string) (map[string]bool, error) {
@@ -198,18 +191,11 @@ func (d *Driver) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	persist := false
-	expiresAt := time.Now().Add(d.cfg.L1TTL)
-	if ttl, err := d.redis.PTTL(ctx, key).Result(); err == nil {
-		switch {
-		case ttl == -1:
-			persist = true
-			expiresAt = time.Now().Add(d.cfg.L1TTL)
-		case ttl > 0 && ttl < d.cfg.L1TTL:
-			expiresAt = time.Now().Add(ttl)
-		}
+	l1ExpiresAt := time.Now().Add(d.cfg.L1TTL)
+	if ttl, err := d.redis.PTTL(ctx, key).Result(); err == nil && ttl > 0 && ttl < d.cfg.L1TTL {
+		l1ExpiresAt = time.Now().Add(ttl)
 	}
-	d.setL1(key, value, expiresAt, persist)
+	d.setL1(key, value, l1ExpiresAt)
 	return cloneBytes(value), nil
 }
 
@@ -238,14 +224,18 @@ func (d *Driver) Set(items ...kv.Item) error {
 		if item == nil || strings.TrimSpace(item.Key()) == "" {
 			return errors.New("tiered: empty item or key")
 		}
-		expiresAt, persist, err := parseTimeout(item.Timeout(), d.cfg.L1TTL)
+		l1ExpiresAt, redisExpiresAt, persist, err := parseTimeout(item.Timeout(), d.cfg.L1TTL)
 		if err != nil {
 			return err
 		}
 		value := cloneBytes(item.Value())
-		d.setL1(item.Key(), value, expiresAt, persist)
-		op := writeOp{key: item.Key(), value: value, expiresAt: expiresAt, persist: persist}
-		if err := d.enqueue(op); err != nil {
+		d.setL1(item.Key(), value, l1ExpiresAt)
+		if err := d.enqueue(writeOp{
+			key:            item.Key(),
+			value:          value,
+			redisExpiresAt: redisExpiresAt,
+			persist:        persist,
+		}); err != nil {
 			return err
 		}
 	}
@@ -273,8 +263,7 @@ func (d *Driver) MExpire(items ...kv.Item) error {
 			return err
 		}
 		if value, ok := d.getL1(item.Key()); ok {
-			expiresAt := time.Now().Add(minDuration(duration, d.cfg.L1TTL))
-			d.setL1(item.Key(), value, expiresAt, false)
+			d.setL1(item.Key(), value, time.Now().Add(minDuration(duration, d.cfg.L1TTL)))
 		}
 	}
 	return nil
@@ -299,8 +288,8 @@ func (d *Driver) TTL(keys ...string) (map[string]string, error) {
 }
 
 func (d *Driver) Clear() error {
-	// Intentionally L1-only. A composite cache must never turn a generic Clear()
-	// into FLUSHDB on a shared/production Redis instance.
+	// Intentionally L1-only. Never map generic cache clear to FLUSHDB
+	// when the Redis database may be shared with production workloads.
 	d.mu.Lock()
 	clear(d.entries)
 	d.mu.Unlock()
@@ -343,23 +332,23 @@ func (d *Driver) getL1(key string) ([]byte, bool) {
 	return cloneBytes(e.value), true
 }
 
-func (d *Driver) setL1(key string, value []byte, expiresAt time.Time, persist bool) {
+func (d *Driver) setL1(key string, value []byte, expiresAt time.Time) {
 	d.mu.Lock()
-	d.entries[key] = entry{value: cloneBytes(value), expiresAt: expiresAt, persist: persist}
+	d.entries[key] = entry{value: cloneBytes(value), expiresAt: expiresAt}
 	d.mu.Unlock()
 }
 
 func (d *Driver) enqueue(op writeOp) error {
 	select {
 	case d.writes <- op:
-		d.queued.Add(1)
 		return nil
 	default:
-		d.fallback.Add(1)
 		if d.cfg.WriteFallback == "drop" {
 			d.log.Warn("tiered write queue full; dropping Redis write", zap.String("key", op.key))
 			return nil
 		}
+		// Reliability-first fallback: if the queue is saturated, perform the
+		// Redis write synchronously instead of silently losing cache coherence.
 		return d.writeRedis(op)
 	}
 }
@@ -369,22 +358,12 @@ func (d *Driver) writer() {
 	for {
 		select {
 		case op := <-d.writes:
-			if err := d.writeRedis(op); err != nil {
-				d.failed.Add(1)
-				d.log.Warn("tiered async Redis write failed", zap.String("key", op.key), zap.Error(err))
-			} else {
-				d.written.Add(1)
-			}
+			d.writeRedisLogged(op, "tiered async Redis write failed")
 		case <-d.stopCh:
 			for {
 				select {
 				case op := <-d.writes:
-					if err := d.writeRedis(op); err != nil {
-						d.failed.Add(1)
-						d.log.Warn("tiered Redis flush failed", zap.String("key", op.key), zap.Error(err))
-					} else {
-						d.written.Add(1)
-					}
+					d.writeRedisLogged(op, "tiered Redis shutdown flush failed")
 				default:
 					return
 				}
@@ -393,32 +372,38 @@ func (d *Driver) writer() {
 	}
 }
 
+func (d *Driver) writeRedisLogged(op writeOp, message string) {
+	if err := d.writeRedis(op); err != nil {
+		d.log.Warn(message, zap.String("key", op.key), zap.Error(err))
+	}
+}
+
 func (d *Driver) writeRedis(op writeOp) error {
 	ctx := context.Background()
 	if op.persist {
 		return d.redis.Set(ctx, op.key, op.value, 0).Err()
 	}
-	ttl := time.Until(op.expiresAt)
+	ttl := time.Until(op.redisExpiresAt)
 	if ttl <= 0 {
 		ttl = time.Millisecond
 	}
 	return d.redis.Set(ctx, op.key, op.value, ttl).Err()
 }
 
-func parseTimeout(timeout string, l1TTL time.Duration) (time.Time, bool, error) {
+func parseTimeout(timeout string, l1TTL time.Duration) (l1ExpiresAt time.Time, redisExpiresAt time.Time, persist bool, err error) {
 	now := time.Now()
 	if timeout == "" {
-		return now.Add(l1TTL), true, nil
+		return now.Add(l1TTL), time.Time{}, true, nil
 	}
 	deadline, err := time.Parse(time.RFC3339, timeout)
 	if err != nil {
-		return time.Time{}, false, err
+		return time.Time{}, time.Time{}, false, err
 	}
 	remaining := time.Until(deadline)
 	if remaining <= 0 {
 		remaining = time.Millisecond
 	}
-	return now.Add(minDuration(remaining, l1TTL)), false, nil
+	return now.Add(minDuration(remaining, l1TTL)), deadline, false, nil
 }
 
 func minDuration(a, b time.Duration) time.Duration {
