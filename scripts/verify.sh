@@ -20,15 +20,16 @@ for _ in $(seq 1 "$REQUESTS"); do
 done
 
 printf '\nUnique worker observations:\n'
-printf '%-8s %-14s %-24s %-24s %-24s %-24s\n' 'PID' 'WORKER_ID' 'WORKER_LOCAL' 'RR_MEMORY' 'RR_REDIS' 'PREDIS_REDIS'
-jq -r '[.pid, .worker_id, (.worker_token // "-"), (.rr_memory_token // "-"), (.rr_redis_token // "-"), (.predis_token // "-")] | @tsv' "$TMP" \
+printf '%-8s %-14s %-20s %-20s %-20s %-20s %-20s\n' 'PID' 'WORKER_ID' 'WORKER_LOCAL' 'RR_MEMORY' 'TIERED' 'RR_REDIS' 'PREDIS_REDIS'
+jq -r '[.pid, .worker_id, (.worker_token // "-"), (.rr_memory_token // "-"), (.tiered_token // "-"), (.rr_redis_token // "-"), (.predis_token // "-")] | @tsv' "$TMP" \
     | sort -u \
-    | while IFS=$'\t' read -r pid worker_id worker_local rr_memory rr_redis predis_redis; do
-        printf '%-8s %-14s %-24s %-24s %-24s %-24s\n' \
-            "$pid" "$worker_id" "${worker_local:--}" "${rr_memory:--}" "${rr_redis:--}" "${predis_redis:--}"
+    | while IFS=$'\t' read -r pid worker_id worker_local rr_memory tiered rr_redis predis_redis; do
+        printf '%-8s %-14s %-20s %-20s %-20s %-20s %-20s\n' \
+            "$pid" "$worker_id" "${worker_local:--}" "${rr_memory:--}" "${tiered:--}" "${rr_redis:--}" "${predis_redis:--}"
     done
 
 RR_MEMORY_BAD="$(jq --arg token "$TOKEN" '[select(.rr_memory_token != $token)] | length' "$TMP" | awk '{s+=$1} END {print s+0}')"
+TIERED_BAD="$(jq --arg token "$TOKEN" '[select(.tiered_token != $token)] | length' "$TMP" | awk '{s+=$1} END {print s+0}')"
 RR_REDIS_BAD="$(jq --arg token "$TOKEN" '[select(.rr_redis_token != $token)] | length' "$TMP" | awk '{s+=$1} END {print s+0}')"
 PREDIS_BAD="$(jq --arg token "$TOKEN" '[select(.predis_token != $token)] | length' "$TMP" | awk '{s+=$1} END {print s+0}')"
 UNIQUE_WORKERS="$(jq -r '.pid' "$TMP" | sort -u | wc -l | tr -d ' ')"
@@ -37,16 +38,17 @@ WORKER_MISSES="$(jq --arg token "$TOKEN" 'select(.worker_token != $token) | 1' "
 printf '\nChecks:\n'
 printf '  unique PHP workers observed: %s\n' "$UNIQUE_WORKERS"
 printf '  RR memory mismatches:        %s\n' "$RR_MEMORY_BAD"
+printf '  Tiered mismatches:           %s\n' "$TIERED_BAD"
 printf '  RR Redis mismatches:         %s\n' "$RR_REDIS_BAD"
 printf '  Predis mismatches:           %s\n' "$PREDIS_BAD"
 printf '  worker-local misses:         %s\n' "$WORKER_MISSES"
 
-if [[ "$RR_MEMORY_BAD" != "0" || "$RR_REDIS_BAD" != "0" || "$PREDIS_BAD" != "0" ]]; then
+if [[ "$RR_MEMORY_BAD" != "0" || "$TIERED_BAD" != "0" || "$RR_REDIS_BAD" != "0" || "$PREDIS_BAD" != "0" ]]; then
     printf '\nFAILED: shared stores did not return the seeded token on every request.\n' >&2
     exit 1
 fi
 
-printf '\nOK: RR memory, RR Redis and Predis are shared across the sampled PHP workers.\n'
+printf '\nOK: RR memory, Tiered, RR Redis and Predis are shared across sampled PHP workers.\n'
 if (( UNIQUE_WORKERS > 1 && WORKER_MISSES > 0 )); then
     printf 'OK: worker-local state is isolated per PHP worker, as expected.\n'
 fi
