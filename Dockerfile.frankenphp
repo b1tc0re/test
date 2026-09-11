@@ -1,5 +1,27 @@
+FROM dunglas/frankenphp:1.12.7-builder-php8.4-bookworm AS franken-builder
+
+COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
+COPY franken-tiered /src/franken-tiered
+
+RUN cd /src/franken-tiered \
+    && go mod tidy
+
+WORKDIR /go/src/app
+RUN CGO_ENABLED=1 \
+    XCADDY_SETCAP=1 \
+    XCADDY_GO_BUILD_FLAGS="-ldflags='-w -s' -tags=nobadger,nomysql,nopgx" \
+    CGO_CFLAGS="$(php-config --includes)" \
+    CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs)" \
+    xcaddy build \
+        --output /usr/local/bin/frankenphp \
+        --with github.com/dunglas/frankenphp=./ \
+        --with github.com/dunglas/frankenphp/caddy=./caddy/ \
+        --with github.com/b1tc0re/franken-tiered=/src/franken-tiered
+
 FROM composer:2 AS composer
 FROM dunglas/frankenphp:1.12.7-php8.4-bookworm
+
+COPY --from=franken-builder /usr/local/bin/frankenphp /usr/local/bin/frankenphp
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -26,11 +48,14 @@ RUN rm -rf /app/* \
     && composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
 COPY app/Support/BenchmarkStores.php /app/app/Support/BenchmarkStores.php
+COPY app/Cache /app/app/Cache
+COPY app/Providers/AppServiceProvider.php /app/app/Providers/AppServiceProvider.php
 COPY routes/web.php /app/routes/web.php
 COPY php.ini /usr/local/etc/php/conf.d/99-benchmark.ini
 COPY entrypoint-frankenphp.sh /usr/local/bin/benchmark-frankenphp-entrypoint
 
-RUN chmod +x /usr/local/bin/benchmark-frankenphp-entrypoint \
+RUN composer dump-autoload --no-dev --optimize --no-interaction \
+    && chmod +x /usr/local/bin/benchmark-frankenphp-entrypoint \
     && mkdir -p /app/storage/framework/cache /app/storage/framework/sessions /app/storage/framework/views /app/storage/logs /app/bootstrap/cache
 
 EXPOSE 8080
