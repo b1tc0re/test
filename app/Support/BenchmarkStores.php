@@ -15,6 +15,9 @@ final class BenchmarkStores
     /** @var array<int, string> */
     private static array $payloads = [];
 
+    /** @var array<int, int> */
+    private static array $writeBenchCounters = [];
+
     private static ?RPC $rpc = null;
     private static ?CacheInterface $roadRunnerMemory = null;
     private static ?CacheInterface $roadRunnerRedis = null;
@@ -30,6 +33,14 @@ final class BenchmarkStores
     public static function payload(int $size): string
     {
         return self::$payloads[$size] ??= str_repeat('x', $size);
+    }
+
+    public static function nextWriteBenchSlot(int $size, int $slots): int
+    {
+        $counter = self::$writeBenchCounters[$size] ?? 0;
+        self::$writeBenchCounters[$size] = $counter + 1;
+
+        return $counter % $slots;
     }
 
     public static function workerGet(string $key): ?string
@@ -75,6 +86,22 @@ final class BenchmarkStores
     public static function tieredClearL1(): void
     {
         self::roadRunnerTiered()->clear();
+    }
+
+    public static function cleanupTieredWriteBench(int $size, int $slots): array
+    {
+        $keys = [];
+        for ($slot = 0; $slot < $slots; $slot++) {
+            $keys[] = self::tieredKey("writebench:{$size}:{$slot}");
+        }
+
+        $deleted = $keys === [] ? 0 : (int) self::predis()->del($keys);
+
+        return [
+            'deleted' => $deleted,
+            'key_count' => count($keys),
+            'prefix' => self::tieredKey("writebench:{$size}:"),
+        ];
     }
 
     public static function predisGet(string $key): ?string
