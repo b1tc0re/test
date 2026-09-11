@@ -1,0 +1,35 @@
+FROM composer:2 AS composer
+FROM dunglas/frankenphp:1.12.7-php8.4-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        git \
+        unzip \
+    && install-php-extensions pcntl sockets opcache pdo_sqlite protobuf \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
+
+WORKDIR /app
+
+RUN composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-interaction \
+    && composer require \
+        laravel/octane:^2.17 \
+        spiral/roadrunner-http:^3.3 \
+        spiral/roadrunner-kv:^4.0 \
+        predis/predis:^3.0 \
+        --no-interaction \
+    && composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+COPY app/Support/BenchmarkStores.php /app/app/Support/BenchmarkStores.php
+COPY routes/web.php /app/routes/web.php
+COPY php.ini /usr/local/etc/php/conf.d/99-benchmark.ini
+COPY entrypoint-frankenphp.sh /usr/local/bin/benchmark-frankenphp-entrypoint
+
+RUN chmod +x /usr/local/bin/benchmark-frankenphp-entrypoint \
+    && mkdir -p /app/storage/framework/cache /app/storage/framework/sessions /app/storage/framework/views /app/storage/logs /app/bootstrap/cache
+
+EXPOSE 8080
+
+ENTRYPOINT ["benchmark-frankenphp-entrypoint"]
