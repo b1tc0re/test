@@ -51,12 +51,14 @@ for size in $SIZES; do
 
     run_wrk "worker read ${size}B" "/bench/worker/read/${size}"
     run_wrk "rr memory read ${size}B" "/bench/rr-memory/read/${size}"
+    run_wrk "tiered read ${size}B" "/bench/tiered/read/${size}"
     run_wrk "rr redis read ${size}B" "/bench/rr-redis/read/${size}"
     run_wrk "predis redis read ${size}B" "/bench/predis/read/${size}"
 
     if [[ "$MODE" == "all" || "$MODE" == "write" ]]; then
         run_wrk "worker write ${size}B" "/bench/worker/write/${size}"
         run_wrk "rr memory write ${size}B" "/bench/rr-memory/write/${size}"
+        run_wrk "tiered async write ${size}B" "/bench/tiered/write/${size}"
         run_wrk "rr redis write ${size}B" "/bench/rr-redis/write/${size}"
         run_wrk "predis redis write ${size}B" "/bench/predis/write/${size}"
     fi
