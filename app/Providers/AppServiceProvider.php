@@ -14,7 +14,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $base = rtrim((string) env('BENCH_KEY_PREFIX', 'rrbench'), ':').':prodlike:';
+        $prefix = getenv('BENCH_KEY_PREFIX');
+        $base = rtrim($prefix !== false && $prefix !== '' ? $prefix : 'rrbench', ':').':prodlike:';
 
         config()->set('cache.stores.rr-tiered-driver', [
             'driver' => 'rr-tiered-bench',
@@ -44,7 +45,8 @@ class AppServiceProvider extends ServiceProvider
         $cache = $this->app->make('cache');
 
         $cache->extend('rr-tiered-bench', function ($app, array $config) use ($cache) {
-            $rpc = RPC::create((string) (env('RR_RPC') ?: 'tcp://127.0.0.1:6001'));
+            $rpcAddress = getenv('RR_RPC');
+            $rpc = RPC::create($rpcAddress !== false && $rpcAddress !== '' ? $rpcAddress : 'tcp://127.0.0.1:6001');
             $storage = (new Factory($rpc, new IdentitySerializer()))
                 ->select((string) ($config['connection'] ?? 'tiered'));
 
