@@ -3,8 +3,10 @@ THREADS ?= 4
 CONNECTIONS ?= 100
 SIZES ?= 1024
 MODE ?= all
+OPS_LIST ?= 1 10 100 1000
+SIZE ?= 1024
 
-.PHONY: up down logs verify bench bench-full matrix versions
+.PHONY: up down logs verify bench bench-full microbench matrix versions
 
 up:
 	docker compose build app bench
@@ -30,6 +32,15 @@ bench:
 
 bench-full:
 	$(MAKE) bench SIZES="64 1024 16384 65536"
+
+microbench:
+	docker compose run --rm \
+		-e DURATION="$(DURATION)" \
+		-e THREADS="$(THREADS)" \
+		-e CONNECTIONS="$(CONNECTIONS)" \
+		-e OPS_LIST="$(OPS_LIST)" \
+		-e SIZE="$(SIZE)" \
+		bench /scripts/microbench.sh http://app:8080
 
 matrix:
 	WORKERS_LIST="$(WORKERS_LIST)" DURATION="$(DURATION)" THREADS="$(THREADS)" CONNECTIONS="$(CONNECTIONS)" SIZES="$(SIZES)" MODE="$(MODE)" ./scripts/matrix.sh
