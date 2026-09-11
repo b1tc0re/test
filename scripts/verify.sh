@@ -10,6 +10,9 @@ trap 'rm -f "$TMP"' EXIT
 printf 'Seeding token: %s\n' "$TOKEN"
 curl -fsS "${BASE_URL}/bench/seed?token=${TOKEN}" | jq .
 
+printf '\nRaw Redis values after seed:\n'
+curl -fsS "${BASE_URL}/bench/redis-raw" | jq .
+
 printf '\nSampling %s requests across RoadRunner workers...\n' "$REQUESTS"
 for _ in $(seq 1 "$REQUESTS"); do
     curl -fsS "${BASE_URL}/bench/probe" >> "$TMP"
@@ -17,9 +20,13 @@ for _ in $(seq 1 "$REQUESTS"); do
 done
 
 printf '\nUnique worker observations:\n'
+printf '%-8s %-14s %-24s %-24s %-24s %-24s\n' 'PID' 'WORKER_ID' 'WORKER_LOCAL' 'RR_MEMORY' 'RR_REDIS' 'PREDIS_REDIS'
 jq -r '[.pid, .worker_id, (.worker_token // "-"), (.rr_memory_token // "-"), (.rr_redis_token // "-"), (.predis_token // "-")] | @tsv' "$TMP" \
     | sort -u \
-    | awk 'BEGIN {printf "%-8s %-14s %-24s %-24s %-24s %-24s\n", "PID", "WORKER_ID", "WORKER_LOCAL", "RR_MEMORY", "RR_REDIS", "PREDIS_REDIS"} {printf "%-8s %-14s %-24s %-24s %-24s %-24s\n", $1, $2, $3, $4, $5, $6}'
+    | while IFS=$'\t' read -r pid worker_id worker_local rr_memory rr_redis predis_redis; do
+        printf '%-8s %-14s %-24s %-24s %-24s %-24s\n' \
+            "$pid" "$worker_id" "${worker_local:--}" "${rr_memory:--}" "${rr_redis:--}" "${predis_redis:--}"
+    done
 
 RR_MEMORY_BAD="$(jq --arg token "$TOKEN" '[select(.rr_memory_token != $token)] | length' "$TMP" | awk '{s+=$1} END {print s+0}')"
 RR_REDIS_BAD="$(jq --arg token "$TOKEN" '[select(.rr_redis_token != $token)] | length' "$TMP" | awk '{s+=$1} END {print s+0}')"
