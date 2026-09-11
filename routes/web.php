@@ -59,15 +59,6 @@ $write = static function (string $backend, int $size): string {
 
 $microRead = static function (string $backend, int $ops, int $size): string {
     $key = "payload:{$size}";
-    $value = BenchmarkStores::payload($size);
-
-    match ($backend) {
-        'worker' => BenchmarkStores::workerSet($key, $value),
-        'rr-memory' => BenchmarkStores::roadRunnerMemorySet($key, $value),
-        'rr-redis' => BenchmarkStores::roadRunnerRedisSet($key, $value),
-        'predis' => BenchmarkStores::predisSet($key, $value),
-    };
-
     $total = 0;
 
     for ($i = 0; $i < $ops; $i++) {
@@ -78,7 +69,8 @@ $microRead = static function (string $backend, int $ops, int $size): string {
             'predis' => BenchmarkStores::predisGet($key),
         };
 
-        $total += strlen((string) $item);
+        abort_if($item === null, 500, "Benchmark key is not seeded for {$backend}");
+        $total += strlen($item);
     }
 
     return (string) $total;
