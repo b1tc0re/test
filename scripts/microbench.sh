@@ -32,6 +32,9 @@ for _ in $(seq 1 60); do
     sleep 1
 done
 
+# Seed every backend once before the measured requests begin.
+curl -fsS "${BASE_URL}/bench/seed-size/${SIZE}" >/dev/null
+
 printf 'Cache operation microbenchmark\n'
 printf 'threads=%s connections=%s duration=%s size=%sB ops="%s"\n\n' "$THREADS" "$CONNECTIONS" "$DURATION" "$SIZE" "$OPS_LIST"
 printf '%-34s %14s %14s %14s\n' 'ENDPOINT' 'REQ/SEC' 'AVG LAT' 'P99 LAT'
