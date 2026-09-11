@@ -24,6 +24,7 @@ services:
       REDIS_USERNAME: "${REDIS_USERNAME:-}"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       REDIS_DB: "${REDIS_DB:-0}"
+      REDIS_PREFIX: ""
       BENCH_KEY_PREFIX: "${BENCH_KEY_PREFIX:-rrbench}"
       BENCH_CACHE_BACKEND: tiered
       TIERED_WRITERS: "${TIERED_WRITERS:-4}"
@@ -65,6 +66,7 @@ services:
       REDIS_USERNAME: "${REDIS_USERNAME:-}"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       REDIS_DB: "${REDIS_DB:-0}"
+      REDIS_PREFIX: ""
       BENCH_KEY_PREFIX: "${BENCH_KEY_PREFIX:-rrbench}"
       BENCH_CACHE_BACKEND: predis
       FRANKEN_TIERED_L1_TTL: "30s"
