@@ -34,15 +34,15 @@ run_wrk() {
     avg="$(awk '$1 == "Latency" {print $2; exit}' <<<"$output")"
     p99="$(awk '$1 == "99%" {print $2; exit}' <<<"$output")"
 
-    printf '%-26s %14s %14s %14s\n' "$label" "${rps:-?}" "${avg:-?}" "${p99:-?}"
+    printf '%-30s %14s %14s %14s\n' "$label" "${rps:-?}" "${avg:-?}" "${p99:-?}"
 }
 
 wait_for_app
 
 printf 'RoadRunner benchmark\n'
 printf 'threads=%s connections=%s duration=%s sizes="%s" mode=%s\n\n' "$THREADS" "$CONNECTIONS" "$DURATION" "$SIZES" "$MODE"
-printf '%-26s %14s %14s %14s\n' 'ENDPOINT' 'REQ/SEC' 'AVG LAT' 'P99 LAT'
-printf '%-26s %14s %14s %14s\n' '--------------------------' '--------------' '--------------' '--------------'
+printf '%-30s %14s %14s %14s\n' 'ENDPOINT' 'REQ/SEC' 'AVG LAT' 'P99 LAT'
+printf '%-30s %14s %14s %14s\n' '------------------------------' '--------------' '--------------' '--------------'
 
 run_wrk 'plain' '/bench/plain'
 
@@ -50,12 +50,14 @@ for size in $SIZES; do
     curl -fsS "${BASE_URL}/bench/seed-size/${size}" >/dev/null
 
     run_wrk "worker read ${size}B" "/bench/worker/read/${size}"
-    run_wrk "rr kv read ${size}B" "/bench/rr/read/${size}"
-    run_wrk "redis read ${size}B" "/bench/redis/read/${size}"
+    run_wrk "rr memory read ${size}B" "/bench/rr-memory/read/${size}"
+    run_wrk "rr redis read ${size}B" "/bench/rr-redis/read/${size}"
+    run_wrk "predis redis read ${size}B" "/bench/predis/read/${size}"
 
     if [[ "$MODE" == "all" || "$MODE" == "write" ]]; then
         run_wrk "worker write ${size}B" "/bench/worker/write/${size}"
-        run_wrk "rr kv write ${size}B" "/bench/rr/write/${size}"
-        run_wrk "redis write ${size}B" "/bench/redis/write/${size}"
+        run_wrk "rr memory write ${size}B" "/bench/rr-memory/write/${size}"
+        run_wrk "rr redis write ${size}B" "/bench/rr-redis/write/${size}"
+        run_wrk "predis redis write ${size}B" "/bench/predis/write/${size}"
     fi
 done
