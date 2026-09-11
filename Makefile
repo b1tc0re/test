@@ -8,8 +8,9 @@ SIZE ?= 1024
 WRITERS_LIST ?= 4 8 16
 SLOTS ?= 256
 RUNTIME_OPS ?= 1 5 10
+PROD_CACHE_OPS ?= 1 5 10
 
-.PHONY: up down logs verify tiered-proof tiered-writers-matrix runtime-compare bench bench-full microbench cleanup matrix versions
+.PHONY: up down logs verify tiered-proof tiered-writers-matrix runtime-compare prod-cache-compare bench bench-full microbench cleanup matrix versions
 
 up:
 	docker compose build app bench
@@ -48,6 +49,19 @@ runtime-compare:
 	SIZE="$(SIZE)" \
 	OPS_LIST="$(RUNTIME_OPS)" \
 	bash ./scripts/runtime-compare.sh
+
+prod-cache-compare:
+	docker compose build app frankenphp bench
+	APP_CPUS="$(APP_CPUS)" \
+	APP_MEMORY="$(APP_MEMORY)" \
+	RR_WORKERS="$(RR_WORKERS)" \
+	FRANKENPHP_WORKERS="$(FRANKENPHP_WORKERS)" \
+	DURATION="$(DURATION)" \
+	THREADS="$(THREADS)" \
+	CONNECTIONS="$(CONNECTIONS)" \
+	SIZE="$(SIZE)" \
+	OPS_LIST="$(PROD_CACHE_OPS)" \
+	bash ./scripts/prod-cache-compare.sh
 
 bench:
 	docker compose run --rm \
