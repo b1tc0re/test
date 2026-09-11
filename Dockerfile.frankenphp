@@ -3,9 +3,6 @@ FROM dunglas/frankenphp:1.12.7-builder-php8.4-bookworm AS franken-builder
 COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 COPY franken-tiered /src/franken-tiered
 
-RUN cd /src/franken-tiered \
-    && go mod tidy
-
 WORKDIR /go/src/app
 RUN CGO_ENABLED=1 \
     XCADDY_SETCAP=1 \
@@ -48,6 +45,7 @@ RUN rm -rf /app/* \
     && composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
 COPY app/Support/BenchmarkStores.php /app/app/Support/BenchmarkStores.php
+COPY app/Support/ProdLikePayload.php /app/app/Support/ProdLikePayload.php
 COPY app/Cache /app/app/Cache
 COPY app/Providers/AppServiceProvider.php /app/app/Providers/AppServiceProvider.php
 COPY routes/web.php /app/routes/web.php
