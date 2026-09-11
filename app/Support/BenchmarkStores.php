@@ -15,8 +15,10 @@ final class BenchmarkStores
     /** @var array<int, string> */
     private static array $payloads = [];
 
-    private static ?CacheInterface $roadRunner = null;
-    private static ?Client $redis = null;
+    private static ?RPC $rpc = null;
+    private static ?CacheInterface $roadRunnerMemory = null;
+    private static ?CacheInterface $roadRunnerRedis = null;
+    private static ?Client $predis = null;
     private static ?string $workerId = null;
 
     public static function workerId(): string
@@ -39,52 +41,72 @@ final class BenchmarkStores
         self::$worker[$key] = $value;
     }
 
-    public static function roadRunnerGet(string $key): ?string
+    public static function roadRunnerMemoryGet(string $key): ?string
     {
-        $value = self::roadRunner()->get($key);
-
-        return $value === null ? null : (string) $value;
+        return self::stringValue(self::roadRunnerMemory()->get($key));
     }
 
-    public static function roadRunnerSet(string $key, string $value): void
+    public static function roadRunnerMemorySet(string $key, string $value): void
     {
-        self::roadRunner()->set($key, $value);
+        self::roadRunnerMemory()->set($key, $value);
     }
 
-    public static function redisGet(string $key): ?string
+    public static function roadRunnerRedisGet(string $key): ?string
     {
-        $value = self::redis()->get($key);
-
-        return $value === null ? null : (string) $value;
+        return self::stringValue(self::roadRunnerRedis()->get($key));
     }
 
-    public static function redisSet(string $key, string $value): void
+    public static function roadRunnerRedisSet(string $key, string $value): void
     {
-        self::redis()->set($key, $value);
+        self::roadRunnerRedis()->set($key, $value);
     }
 
-    private static function roadRunner(): CacheInterface
+    public static function predisGet(string $key): ?string
     {
-        if (self::$roadRunner !== null) {
-            return self::$roadRunner;
+        return self::stringValue(self::predis()->get($key));
+    }
+
+    public static function predisSet(string $key, string $value): void
+    {
+        self::predis()->set($key, $value);
+    }
+
+    private static function roadRunnerMemory(): CacheInterface
+    {
+        return self::$roadRunnerMemory ??= (new Factory(self::rpc()))->select('memory');
+    }
+
+    private static function roadRunnerRedis(): CacheInterface
+    {
+        return self::$roadRunnerRedis ??= (new Factory(self::rpc()))->select('redis');
+    }
+
+    private static function rpc(): RPC
+    {
+        if (self::$rpc !== null) {
+            return self::$rpc;
         }
 
         $rpcAddress = getenv('RR_RPC') ?: 'tcp://127.0.0.1:6001';
-        $rpc = RPC::create($rpcAddress);
 
-        return self::$roadRunner = (new Factory($rpc))->select('memory');
+        return self::$rpc = RPC::create($rpcAddress);
     }
 
-    private static function redis(): Client
+    private static function predis(): Client
     {
-        if (self::$redis !== null) {
-            return self::$redis;
+        if (self::$predis !== null) {
+            return self::$predis;
         }
 
-        return self::$redis = new Client([
+        return self::$predis = new Client([
             'scheme' => 'tcp',
             'host' => getenv('REDIS_HOST') ?: 'redis',
             'port' => (int) (getenv('REDIS_PORT') ?: 6379),
         ]);
+    }
+
+    private static function stringValue(mixed $value): ?string
+    {
+        return $value === null ? null : (string) $value;
     }
 }
