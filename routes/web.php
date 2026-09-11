@@ -1,7 +1,9 @@
 <?php
 
 use App\Support\BenchmarkStores;
+use App\Support\ProdLikePayload;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 $normalizeSize = static function (string $size): int {
@@ -26,6 +28,16 @@ $normalizeSlots = static function (string $slots): int {
     abort_unless(in_array($slots, [64, 256, 1024], true), 404);
 
     return $slots;
+};
+
+$normalizeProdStore = static function (string $store): string {
+    abort_unless(in_array($store, [
+        'rr-tiered-driver',
+        'franken-native-driver',
+        'predis-driver',
+    ], true), 404);
+
+    return $store;
 };
 
 $read = static function (string $backend, int $size): string {
@@ -134,6 +146,78 @@ Route::get('/bench/runtime/cache/write/{size}', static function (string $size) u
     BenchmarkStores::runtimeCacheSet("runtime-payload:{$bytes}", BenchmarkStores::payload($bytes));
 
     return response('OK', 200, ['Content-Type' => 'text/plain']);
+});
+
+Route::get('/bench/prod-cache/probe/{store}', static function (string $store) use ($normalizeProdStore) {
+    $store = $normalizeProdStore($store);
+    $repository = Cache::store($store);
+
+    return response()->json([
+        'store' => $store,
+        'store_class' => $repository->getStore()::class,
+        'sapi' => PHP_SAPI,
+        'zts' => (bool) PHP_ZTS,
+        'pid' => getmypid(),
+        'franken_tiered_extension' => function_exists('franken_tiered_get'),
+    ]);
+});
+
+Route::get('/bench/prod-cache/seed/{store}/{size}', static function (string $store, string $size) use ($normalizeProdStore, $normalizeSize) {
+    $store = $normalizeProdStore($store);
+    $bytes = $normalizeSize($size);
+    $payload = ProdLikePayload::make($bytes);
+    $key = "array-payload:{$bytes}";
+
+    abort_unless(Cache::store($store)->put($key, $payload, 300), 500, 'Unable to seed cache store');
+
+    return response()->json([
+        'store' => $store,
+        'target_bytes' => $bytes,
+        'serialized_bytes' => ProdLikePayload::serializedBytes($bytes),
+        'value_type' => get_debug_type($payload),
+    ]);
+});
+
+Route::get('/bench/prod-cache/read/{store}/{ops}/{size}', static function (string $store, string $ops, string $size) use ($normalizeProdStore, $normalizeOps, $normalizeSize) {
+    $store = $normalizeProdStore($store);
+    $count = $normalizeOps($ops);
+    $bytes = $normalizeSize($size);
+    $key = "array-payload:{$bytes}";
+    $cache = Cache::store($store);
+    $checksum = 0;
+
+    for ($i = 0; $i < $count; $i++) {
+        $value = $cache->get($key);
+        abort_unless(is_array($value), 500, "Production-like cache value is missing or not an array for {$store}");
+        $checksum += (int) ($value['id'] ?? 0) + count($value['filters'] ?? []);
+    }
+
+    return response((string) $checksum, 200, ['Content-Type' => 'text/plain']);
+});
+
+Route::get('/bench/prod-cache/write/{store}/{size}', static function (string $store, string $size) use ($normalizeProdStore, $normalizeSize) {
+    $store = $normalizeProdStore($store);
+    $bytes = $normalizeSize($size);
+    $payload = ProdLikePayload::make($bytes);
+
+    abort_unless(
+        Cache::store($store)->put("array-payload:{$bytes}", $payload, 300),
+        500,
+        "Production-like cache write failed for {$store}",
+    );
+
+    return response('OK', 200, ['Content-Type' => 'text/plain']);
+});
+
+Route::get('/bench/prod-cache/cleanup/{store}/{size}', static function (string $store, string $size) use ($normalizeProdStore, $normalizeSize) {
+    $store = $normalizeProdStore($store);
+    $bytes = $normalizeSize($size);
+
+    return response()->json([
+        'store' => $store,
+        'key' => "array-payload:{$bytes}",
+        'deleted' => Cache::store($store)->forget("array-payload:{$bytes}"),
+    ]);
 });
 
 Route::get('/bench/pid', static fn () => response()->json([
