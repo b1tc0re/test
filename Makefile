@@ -6,7 +6,7 @@ MODE ?= all
 OPS_LIST ?= 1 10 100 1000
 SIZE ?= 1024
 
-.PHONY: up down logs verify bench bench-full microbench matrix versions
+.PHONY: up down logs verify bench bench-full microbench cleanup matrix versions
 
 up:
 	docker compose build app bench
@@ -19,7 +19,7 @@ logs:
 	docker compose logs -f app
 
 verify:
-	docker compose run --rm bench /scripts/verify.sh http://app:8080
+	docker compose run --rm bench bash /scripts/verify.sh http://app:8080
 
 bench:
 	docker compose run --rm \
@@ -28,7 +28,7 @@ bench:
 		-e CONNECTIONS="$(CONNECTIONS)" \
 		-e SIZES="$(SIZES)" \
 		-e MODE="$(MODE)" \
-		bench /scripts/bench.sh http://app:8080
+		bench bash /scripts/bench.sh http://app:8080
 
 bench-full:
 	$(MAKE) bench SIZES="64 1024 16384 65536"
@@ -40,10 +40,13 @@ microbench:
 		-e CONNECTIONS="$(CONNECTIONS)" \
 		-e OPS_LIST="$(OPS_LIST)" \
 		-e SIZE="$(SIZE)" \
-		bench /scripts/microbench.sh http://app:8080
+		bench bash /scripts/microbench.sh http://app:8080
+
+cleanup:
+	docker compose run --rm bench sh -lc 'curl -fsS -X POST http://app:8080/bench/cleanup | jq .'
 
 matrix:
-	WORKERS_LIST="$(WORKERS_LIST)" DURATION="$(DURATION)" THREADS="$(THREADS)" CONNECTIONS="$(CONNECTIONS)" SIZES="$(SIZES)" MODE="$(MODE)" ./scripts/matrix.sh
+	WORKERS_LIST="$(WORKERS_LIST)" DURATION="$(DURATION)" THREADS="$(THREADS)" CONNECTIONS="$(CONNECTIONS)" SIZES="$(SIZES)" MODE="$(MODE)" bash ./scripts/matrix.sh
 
 versions:
 	docker compose exec -T app sh -lc 'php -v | head -n1; rr --version; php artisan --version; composer show laravel/octane spiral/roadrunner-http spiral/roadrunner-kv predis/predis 2>/dev/null || true'
