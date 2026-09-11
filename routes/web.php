@@ -12,6 +12,14 @@ $normalizeSize = static function (string $size): int {
     return $size;
 };
 
+$normalizeOps = static function (string $ops): int {
+    $ops = (int) $ops;
+
+    abort_unless(in_array($ops, [1, 10, 100, 1000], true), 404);
+
+    return $ops;
+};
+
 $read = static function (string $backend, int $size): string {
     $key = "payload:{$size}";
     $value = match ($backend) {
@@ -47,6 +55,33 @@ $write = static function (string $backend, int $size): string {
     };
 
     return 'OK';
+};
+
+$microRead = static function (string $backend, int $ops, int $size): string {
+    $key = "payload:{$size}";
+    $value = BenchmarkStores::payload($size);
+
+    match ($backend) {
+        'worker' => BenchmarkStores::workerSet($key, $value),
+        'rr-memory' => BenchmarkStores::roadRunnerMemorySet($key, $value),
+        'rr-redis' => BenchmarkStores::roadRunnerRedisSet($key, $value),
+        'predis' => BenchmarkStores::predisSet($key, $value),
+    };
+
+    $total = 0;
+
+    for ($i = 0; $i < $ops; $i++) {
+        $item = match ($backend) {
+            'worker' => BenchmarkStores::workerGet($key),
+            'rr-memory' => BenchmarkStores::roadRunnerMemoryGet($key),
+            'rr-redis' => BenchmarkStores::roadRunnerRedisGet($key),
+            'predis' => BenchmarkStores::predisGet($key),
+        };
+
+        $total += strlen((string) $item);
+    }
+
+    return (string) $total;
 };
 
 Route::get('/bench/plain', static fn () => response('OK', 200, ['Content-Type' => 'text/plain']));
@@ -107,5 +142,13 @@ foreach (['worker', 'rr-memory', 'rr-redis', 'predis'] as $backend) {
 
     Route::get("/bench/{$backend}/write/{size}", static function (string $size) use ($backend, $normalizeSize, $write) {
         return response($write($backend, $normalizeSize($size)), 200, ['Content-Type' => 'text/plain']);
+    });
+
+    Route::get("/bench/micro/{$backend}/{ops}/{size}", static function (string $ops, string $size) use ($backend, $normalizeOps, $normalizeSize, $microRead) {
+        return response(
+            $microRead($backend, $normalizeOps($ops), $normalizeSize($size)),
+            200,
+            ['Content-Type' => 'text/plain'],
+        );
     });
 }
