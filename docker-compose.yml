@@ -25,12 +25,50 @@ services:
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       REDIS_DB: "${REDIS_DB:-0}"
       BENCH_KEY_PREFIX: "${BENCH_KEY_PREFIX:-rrbench}"
+      BENCH_CACHE_BACKEND: tiered
       TIERED_WRITERS: "${TIERED_WRITERS:-4}"
       TIERED_QUEUE_SIZE: "${TIERED_QUEUE_SIZE:-10000}"
       TIERED_POOL_SIZE: "${TIERED_POOL_SIZE:-32}"
       TIERED_MIN_IDLE_CONNS: "${TIERED_MIN_IDLE_CONNS:-4}"
     ports:
       - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/bench/plain"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  frankenphp:
+    build:
+      context: .
+      dockerfile: Dockerfile.frankenphp
+    cpus: "${APP_CPUS:-4.0}"
+    mem_limit: "${APP_MEMORY:-1g}"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      APP_URL: "http://localhost:8081"
+      LOG_CHANNEL: stderr
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      LARAVEL_OCTANE: "1"
+      APP_BASE_PATH: /app
+      FRANKENPHP_WORKERS: "${FRANKENPHP_WORKERS:-4}"
+      FRANKENPHP_MAX_REQUESTS: "${FRANKENPHP_MAX_REQUESTS:-1000000}"
+      REDIS_CLIENT: predis
+      REDIS_HOST: "${REDIS_HOST:-redis}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      REDIS_USERNAME: "${REDIS_USERNAME:-}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      REDIS_DB: "${REDIS_DB:-0}"
+      BENCH_KEY_PREFIX: "${BENCH_KEY_PREFIX:-rrbench}"
+      BENCH_CACHE_BACKEND: predis
+    ports:
+      - "8081:8080"
     depends_on:
       redis:
         condition: service_healthy
