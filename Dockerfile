@@ -1,4 +1,21 @@
-FROM ghcr.io/roadrunner-server/roadrunner:2025.1.15 AS roadrunner
+FROM golang:1.26.4-bookworm AS rr-builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+RUN git clone --depth 1 --branch v2025.1.15 https://github.com/roadrunner-server/roadrunner.git /src/roadrunner
+COPY rr-tiered /src/rr-tiered
+
+WORKDIR /src/roadrunner
+RUN go mod edit -require=github.com/b1tc0re/rr-tiered@v0.0.0 \
+    && go mod edit -replace=github.com/b1tc0re/rr-tiered=/src/rr-tiered \
+    && sed -i '/"github.com\/roadrunner-server\/redis\/v5"/a\	tiered "github.com/b1tc0re/rr-tiered"' container/plugins.go \
+    && sed -i '/&redis.Plugin{},/a\		&tiered.Plugin{},' container/plugins.go \
+    && go mod tidy \
+    && CGO_ENABLED=0 go build -trimpath -o /out/rr ./cmd/rr
+
 FROM composer:2 AS composer
 FROM php:8.4-cli-bookworm
 
@@ -15,7 +32,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
-COPY --from=roadrunner /usr/bin/rr /usr/local/bin/rr
+COPY --from=rr-builder /out/rr /usr/local/bin/rr
 
 WORKDIR /app
 
