@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Predis\Client;
 use Psr\SimpleCache\CacheInterface;
+use RuntimeException;
 use Spiral\Goridge\RPC\RPC;
 use Spiral\RoadRunner\KeyValue\Factory;
 
@@ -41,6 +42,33 @@ final class BenchmarkStores
         self::$writeBenchCounters[$size] = $counter + 1;
 
         return $counter % $slots;
+    }
+
+    public static function runtimeCacheBackend(): string
+    {
+        $backend = strtolower(trim((string) (getenv('BENCH_CACHE_BACKEND') ?: 'predis')));
+
+        if (! in_array($backend, ['tiered', 'predis'], true)) {
+            throw new RuntimeException("Unsupported BENCH_CACHE_BACKEND: {$backend}");
+        }
+
+        return $backend;
+    }
+
+    public static function runtimeCacheGet(string $key): ?string
+    {
+        return match (self::runtimeCacheBackend()) {
+            'tiered' => self::tieredGet($key),
+            'predis' => self::predisGet($key),
+        };
+    }
+
+    public static function runtimeCacheSet(string $key, string $value): void
+    {
+        match (self::runtimeCacheBackend()) {
+            'tiered' => self::tieredSet($key, $value),
+            'predis' => self::predisSet($key, $value),
+        };
     }
 
     public static function workerGet(string $key): ?string
