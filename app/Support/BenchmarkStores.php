@@ -53,22 +53,37 @@ final class BenchmarkStores
 
     public static function roadRunnerRedisGet(string $key): ?string
     {
-        return self::stringValue(self::roadRunnerRedis()->get($key));
+        return self::stringValue(self::roadRunnerRedis()->get(self::rrRedisKey($key)));
     }
 
     public static function roadRunnerRedisSet(string $key, string $value): void
     {
-        self::roadRunnerRedis()->set($key, $value);
+        self::roadRunnerRedis()->set(self::rrRedisKey($key), $value);
     }
 
     public static function predisGet(string $key): ?string
     {
-        return self::stringValue(self::predis()->get($key));
+        return self::stringValue(self::predis()->get(self::predisKey($key)));
     }
 
     public static function predisSet(string $key, string $value): void
     {
-        self::predis()->set($key, $value);
+        self::predis()->set(self::predisKey($key), $value);
+    }
+
+    public static function rawRedisGet(string $key): ?string
+    {
+        return self::stringValue(self::predis()->get($key));
+    }
+
+    public static function rrRedisRawKey(string $key): string
+    {
+        return self::rrRedisKey($key);
+    }
+
+    public static function predisRawKey(string $key): string
+    {
+        return self::predisKey($key);
     }
 
     private static function roadRunnerMemory(): CacheInterface
@@ -103,6 +118,16 @@ final class BenchmarkStores
             'host' => getenv('REDIS_HOST') ?: 'redis',
             'port' => (int) (getenv('REDIS_PORT') ?: 6379),
         ]);
+    }
+
+    private static function rrRedisKey(string $key): string
+    {
+        return "rr:{$key}";
+    }
+
+    private static function predisKey(string $key): string
+    {
+        return "predis:{$key}";
     }
 
     private static function stringValue(mixed $value): ?string
