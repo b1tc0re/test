@@ -27,6 +27,24 @@ kv:
       password: "${REDIS_PASSWORD}"
       db: ${REDIS_DB}
 
+  tiered:
+    driver: tiered
+    config:
+      addrs:
+        - "${REDIS_HOST}:${REDIS_PORT}"
+      username: "${REDIS_USERNAME}"
+      password: "${REDIS_PASSWORD}"
+      db: ${REDIS_DB}
+      l1_ttl: 30s
+      queue_size: 10000
+      writers: 4
+      pool_size: 20
+      min_idle_conns: 4
+      dial_timeout: 5s
+      read_timeout: 3s
+      write_timeout: 3s
+      write_fallback: sync
+
 logs:
   mode: production
   level: error
