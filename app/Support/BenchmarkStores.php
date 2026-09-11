@@ -172,6 +172,10 @@ final class BenchmarkStores
             'payload:1024',
             'payload:16384',
             'payload:65536',
+            'runtime-payload:64',
+            'runtime-payload:1024',
+            'runtime-payload:16384',
+            'runtime-payload:65536',
         ];
 
         $keys = [];
