@@ -7,8 +7,9 @@ OPS_LIST ?= 1 10 100 1000
 SIZE ?= 1024
 WRITERS_LIST ?= 4 8 16
 SLOTS ?= 256
+RUNTIME_OPS ?= 1 5 10
 
-.PHONY: up down logs verify tiered-proof tiered-writers-matrix bench bench-full microbench cleanup matrix versions
+.PHONY: up down logs verify tiered-proof tiered-writers-matrix runtime-compare bench bench-full microbench cleanup matrix versions
 
 up:
 	docker compose build app bench
@@ -34,6 +35,19 @@ tiered-writers-matrix:
 	SIZE="$(SIZE)" \
 	SLOTS="$(SLOTS)" \
 	bash ./scripts/tiered-writers-matrix.sh
+
+runtime-compare:
+	docker compose build app frankenphp bench
+	APP_CPUS="$(APP_CPUS)" \
+	APP_MEMORY="$(APP_MEMORY)" \
+	RR_WORKERS="$(RR_WORKERS)" \
+	FRANKENPHP_WORKERS="$(FRANKENPHP_WORKERS)" \
+	DURATION="$(DURATION)" \
+	THREADS="$(THREADS)" \
+	CONNECTIONS="$(CONNECTIONS)" \
+	SIZE="$(SIZE)" \
+	OPS_LIST="$(RUNTIME_OPS)" \
+	bash ./scripts/runtime-compare.sh
 
 bench:
 	docker compose run --rm \
