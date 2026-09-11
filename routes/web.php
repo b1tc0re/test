@@ -122,6 +122,8 @@ Route::get('/bench/redis-raw', static fn () => response()->json([
     'predis_raw' => BenchmarkStores::rawRedisGet(BenchmarkStores::predisRawKey('shared-token')),
 ]));
 
+Route::post('/bench/cleanup', static fn () => response()->json(BenchmarkStores::cleanupRedis()));
+
 Route::get('/bench/seed-size/{size}', static function (string $size) use ($normalizeSize) {
     $bytes = $normalizeSize($size);
     $key = "payload:{$bytes}";
