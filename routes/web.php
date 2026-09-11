@@ -20,6 +20,14 @@ $normalizeOps = static function (string $ops): int {
     return $ops;
 };
 
+$normalizeSlots = static function (string $slots): int {
+    $slots = (int) $slots;
+
+    abort_unless(in_array($slots, [64, 256, 1024], true), 404);
+
+    return $slots;
+};
+
 $read = static function (string $backend, int $size): string {
     $key = "payload:{$size}";
     $value = match ($backend) {
@@ -157,6 +165,23 @@ Route::get('/bench/tiered/proof/get', static function () {
         'value' => $value,
         'get_elapsed_us' => round($elapsedUs, 2),
     ]);
+});
+
+Route::get('/bench/tiered/writebench/{size}/{slots}', static function (string $size, string $slots) use ($normalizeSize, $normalizeSlots) {
+    $bytes = $normalizeSize($size);
+    $slotCount = $normalizeSlots($slots);
+    $slot = BenchmarkStores::nextWriteBenchSlot($bytes, $slotCount);
+
+    BenchmarkStores::tieredSet("writebench:{$bytes}:{$slot}", BenchmarkStores::payload($bytes));
+
+    return response('OK', 200, ['Content-Type' => 'text/plain']);
+});
+
+Route::get('/bench/tiered/writebench-cleanup/{size}/{slots}', static function (string $size, string $slots) use ($normalizeSize, $normalizeSlots) {
+    return response()->json(BenchmarkStores::cleanupTieredWriteBench(
+        $normalizeSize($size),
+        $normalizeSlots($slots),
+    ));
 });
 
 Route::get('/bench/seed-size/{size}', static function (string $size) use ($normalizeSize) {
