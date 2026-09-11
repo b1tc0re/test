@@ -3,8 +3,10 @@ FROM composer:2 AS composer
 FROM php:8.4-cli-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl git unzip \
+    && apt-get install -y --no-install-recommends curl git unzip $PHPIZE_DEPS \
     && docker-php-ext-install pcntl sockets opcache \
+    && pecl install protobuf \
+    && docker-php-ext-enable protobuf \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
@@ -15,7 +17,7 @@ WORKDIR /app
 RUN composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-interaction \
     && composer require \
         laravel/octane:^2.17 \
-        spiral/roadrunner-http:^3.0 \
+        spiral/roadrunner-http:^3.3 \
         spiral/roadrunner-kv:^4.0 \
         predis/predis:^3.0 \
         --no-interaction \
