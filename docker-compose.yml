@@ -25,6 +25,10 @@ services:
       REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       REDIS_DB: "${REDIS_DB:-0}"
       BENCH_KEY_PREFIX: "${BENCH_KEY_PREFIX:-rrbench}"
+      TIERED_WRITERS: "${TIERED_WRITERS:-4}"
+      TIERED_QUEUE_SIZE: "${TIERED_QUEUE_SIZE:-10000}"
+      TIERED_POOL_SIZE: "${TIERED_POOL_SIZE:-32}"
+      TIERED_MIN_IDLE_CONNS: "${TIERED_MIN_IDLE_CONNS:-4}"
     ports:
       - "8080:8080"
     depends_on:
