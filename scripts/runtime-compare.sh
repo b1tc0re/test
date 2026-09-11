@@ -45,6 +45,9 @@ docker compose up -d --force-recreate frankenphp
 printf '\nVersions:\n'
 docker compose exec -T frankenphp sh -lc 'php -v | head -n1; frankenphp build-info 2>/dev/null | grep -m1 -E "frankenphp.*v[0-9]" || true; php artisan --version; composer show laravel/octane predis/predis 2>/dev/null | grep -E "^(name|versions)" || true'
 run_bench 'http://frankenphp:8080' 'FrankenPHP + Predis cache'
+
+# Safe cleanup: /bench/cleanup deletes only the explicit benchmark key list.
+docker compose exec -T frankenphp curl -fsS http://127.0.0.1:8080/bench/cleanup >/dev/null || true
 docker compose stop frankenphp >/dev/null
 
 printf '\nComparison complete. Both application runtimes are stopped; Redis service is left running.\n'
