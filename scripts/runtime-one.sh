@@ -54,8 +54,8 @@ done
 printf '\n%s\n' "$LABEL"
 printf 'threads=%s connections=%s duration=%s size=%sB cache_ops="%s"\n' \
     "$THREADS" "$CONNECTIONS" "$DURATION" "$SIZE" "$OPS_LIST"
-printf 'Execution observations (PID / worker-local id):\n'
-jq -r '[.pid, .worker_id, .cache_backend, .sapi, (.server_software // "-")] | @tsv' "$TMP" | sort -u
+printf 'Execution observations (PID / worker-local id / backend / SAPI / ZTS / server):\n'
+jq -r '[.pid, .worker_id, .cache_backend, .sapi, .zts, (.server_software // "-")] | @tsv' "$TMP" | sort -u
 
 curl -fsS "${BASE_URL}/bench/runtime/cache/seed/${SIZE}" >/dev/null
 
