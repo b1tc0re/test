@@ -13,6 +13,9 @@ http:
     num_workers: 4
     max_jobs: 1000000
 
+metrics:
+  address: 0.0.0.0:2112
+
 kv:
   memory:
     driver: memory
@@ -36,14 +39,14 @@ kv:
       password: "${REDIS_PASSWORD}"
       db: ${REDIS_DB}
       l1_ttl: 30s
-      queue_size: 10000
-      writers: 4
-      pool_size: 20
-      min_idle_conns: 4
+      queue_size: ${TIERED_QUEUE_SIZE}
+      writers: ${TIERED_WRITERS}
+      pool_size: ${TIERED_POOL_SIZE}
+      min_idle_conns: ${TIERED_MIN_IDLE_CONNS}
       dial_timeout: 5s
       read_timeout: 3s
       write_timeout: 3s
-      write_fallback: sync
+      write_fallback: block
 
 logs:
   mode: production
