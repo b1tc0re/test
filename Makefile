@@ -7,7 +7,8 @@ MODE ?= all
 .PHONY: up down logs verify bench bench-full matrix versions
 
 up:
-	docker compose up -d --build app redis
+	docker compose build app bench
+	docker compose up -d app redis
 
 down:
 	docker compose down -v
