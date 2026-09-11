@@ -86,6 +86,28 @@ final class BenchmarkStores
         return self::predisKey($key);
     }
 
+    /** @return array{deleted:int, keys:list<string>} */
+    public static function cleanupRedis(): array
+    {
+        $logicalKeys = [
+            'shared-token',
+            'payload:64',
+            'payload:1024',
+            'payload:16384',
+            'payload:65536',
+        ];
+
+        $keys = [];
+        foreach ($logicalKeys as $key) {
+            $keys[] = self::rrRedisKey($key);
+            $keys[] = self::predisKey($key);
+        }
+
+        $deleted = $keys === [] ? 0 : (int) self::predis()->del($keys);
+
+        return ['deleted' => $deleted, 'keys' => $keys];
+    }
+
     private static function roadRunnerMemory(): CacheInterface
     {
         return self::$roadRunnerMemory ??= (new Factory(self::rpc()))->select('memory');
@@ -113,21 +135,43 @@ final class BenchmarkStores
             return self::$predis;
         }
 
-        return self::$predis = new Client([
+        $parameters = [
             'scheme' => 'tcp',
             'host' => getenv('REDIS_HOST') ?: 'redis',
             'port' => (int) (getenv('REDIS_PORT') ?: 6379),
-        ]);
+            'database' => (int) (getenv('REDIS_DB') ?: 0),
+        ];
+
+        $username = getenv('REDIS_USERNAME');
+        $password = getenv('REDIS_PASSWORD');
+
+        if ($username !== false && $username !== '') {
+            $parameters['username'] = $username;
+        }
+
+        if ($password !== false && $password !== '') {
+            $parameters['password'] = $password;
+        }
+
+        return self::$predis = new Client($parameters);
+    }
+
+    private static function prefix(): string
+    {
+        $prefix = trim((string) (getenv('BENCH_KEY_PREFIX') ?: 'rrbench'));
+        $prefix = rtrim($prefix, ':');
+
+        return $prefix === '' ? 'rrbench' : $prefix;
     }
 
     private static function rrRedisKey(string $key): string
     {
-        return "rr:{$key}";
+        return self::prefix().":rr:{$key}";
     }
 
     private static function predisKey(string $key): string
     {
-        return "predis:{$key}";
+        return self::prefix().":predis:{$key}";
     }
 
     private static function stringValue(mixed $value): ?string
