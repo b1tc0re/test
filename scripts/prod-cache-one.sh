@@ -61,6 +61,10 @@ done
 
 run_wrk 'Laravel cache write 1/request' "/bench/prod-cache/write/${STORE}/${SIZE}"
 
-# Delete only the exact benchmark key for this store. No FLUSHDB/FLUSHALL/SCAN.
+# Let asynchronous L2 writers drain before deleting the exact test key. Then
+# delete it twice to avoid a late queued write repopulating it between checks.
+sleep 1
 printf '\nCleanup exact benchmark key:\n'
 curl -fsS "${BASE_URL}/bench/prod-cache/cleanup/${STORE}/${SIZE}" | jq .
+sleep 0.2
+curl -fsS "${BASE_URL}/bench/prod-cache/cleanup/${STORE}/${SIZE}" >/dev/null
