@@ -13,6 +13,7 @@ RUN CGO_ENABLED=1 \
         --output /usr/local/bin/frankenphp \
         --with github.com/dunglas/frankenphp=./ \
         --with github.com/dunglas/frankenphp/caddy=./caddy/ \
+        --with github.com/dunglas/caddy-cbrotli \
         --with github.com/b1tc0re/franken-tiered=/src/franken-tiered
 
 FROM composer:2 AS composer
