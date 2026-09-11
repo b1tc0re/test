@@ -46,6 +46,7 @@ RUN composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-intera
     && composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
 COPY app/Support/BenchmarkStores.php /app/app/Support/BenchmarkStores.php
+COPY app/Support/ProdLikePayload.php /app/app/Support/ProdLikePayload.php
 COPY app/Cache /app/app/Cache
 COPY app/Providers/AppServiceProvider.php /app/app/Providers/AppServiceProvider.php
 COPY routes/web.php /app/routes/web.php
