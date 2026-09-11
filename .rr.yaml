@@ -18,6 +18,12 @@ kv:
     driver: memory
     config: {}
 
+  redis:
+    driver: redis
+    config:
+      addrs:
+        - "redis:6379"
+
 logs:
   mode: production
   level: error
