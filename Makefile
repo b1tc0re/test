@@ -5,8 +5,10 @@ SIZES ?= 1024
 MODE ?= all
 OPS_LIST ?= 1 10 100 1000
 SIZE ?= 1024
+WRITERS_LIST ?= 4 8 16
+SLOTS ?= 256
 
-.PHONY: up down logs verify tiered-proof bench bench-full microbench cleanup matrix versions
+.PHONY: up down logs verify tiered-proof tiered-writers-matrix bench bench-full microbench cleanup matrix versions
 
 up:
 	docker compose build app bench
@@ -23,6 +25,15 @@ verify:
 
 tiered-proof:
 	docker compose run --rm bench bash /scripts/tiered-proof.sh http://app:8080
+
+tiered-writers-matrix:
+	WRITERS_LIST="$(WRITERS_LIST)" \
+	DURATION="$(DURATION)" \
+	THREADS="$(THREADS)" \
+	CONNECTIONS="$(CONNECTIONS)" \
+	SIZE="$(SIZE)" \
+	SLOTS="$(SLOTS)" \
+	bash ./scripts/tiered-writers-matrix.sh
 
 bench:
 	docker compose run --rm \
