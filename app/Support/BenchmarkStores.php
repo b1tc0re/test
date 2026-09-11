@@ -18,6 +18,7 @@ final class BenchmarkStores
     private static ?RPC $rpc = null;
     private static ?CacheInterface $roadRunnerMemory = null;
     private static ?CacheInterface $roadRunnerRedis = null;
+    private static ?CacheInterface $roadRunnerTiered = null;
     private static ?Client $predis = null;
     private static ?string $workerId = null;
 
@@ -61,6 +62,21 @@ final class BenchmarkStores
         self::roadRunnerRedis()->set(self::rrRedisKey($key), $value);
     }
 
+    public static function tieredGet(string $key): ?string
+    {
+        return self::stringValue(self::roadRunnerTiered()->get(self::tieredKey($key)));
+    }
+
+    public static function tieredSet(string $key, string $value): void
+    {
+        self::roadRunnerTiered()->set(self::tieredKey($key), $value);
+    }
+
+    public static function tieredClearL1(): void
+    {
+        self::roadRunnerTiered()->clear();
+    }
+
     public static function predisGet(string $key): ?string
     {
         return self::stringValue(self::predis()->get(self::predisKey($key)));
@@ -81,6 +97,11 @@ final class BenchmarkStores
         return self::rrRedisKey($key);
     }
 
+    public static function tieredRawKey(string $key): string
+    {
+        return self::tieredKey($key);
+    }
+
     public static function predisRawKey(string $key): string
     {
         return self::predisKey($key);
@@ -91,6 +112,7 @@ final class BenchmarkStores
     {
         $logicalKeys = [
             'shared-token',
+            'tiered-proof',
             'payload:64',
             'payload:1024',
             'payload:16384',
@@ -100,6 +122,7 @@ final class BenchmarkStores
         $keys = [];
         foreach ($logicalKeys as $key) {
             $keys[] = self::rrRedisKey($key);
+            $keys[] = self::tieredKey($key);
             $keys[] = self::predisKey($key);
         }
 
@@ -116,6 +139,11 @@ final class BenchmarkStores
     private static function roadRunnerRedis(): CacheInterface
     {
         return self::$roadRunnerRedis ??= (new Factory(self::rpc()))->select('redis');
+    }
+
+    private static function roadRunnerTiered(): CacheInterface
+    {
+        return self::$roadRunnerTiered ??= (new Factory(self::rpc()))->select('tiered');
     }
 
     private static function rpc(): RPC
@@ -167,6 +195,11 @@ final class BenchmarkStores
     private static function rrRedisKey(string $key): string
     {
         return self::prefix().":rr:{$key}";
+    }
+
+    private static function tieredKey(string $key): string
+    {
+        return self::prefix().":tiered:{$key}";
     }
 
     private static function predisKey(string $key): string
