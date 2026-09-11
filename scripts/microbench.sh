@@ -32,7 +32,6 @@ for _ in $(seq 1 60); do
     sleep 1
 done
 
-# Seed every backend once before the measured requests begin.
 curl -fsS "${BASE_URL}/bench/seed-size/${SIZE}" >/dev/null
 
 printf 'Cache operation microbenchmark\n'
@@ -45,6 +44,7 @@ run_wrk 'plain' '/bench/plain'
 for ops in $OPS_LIST; do
     run_wrk "worker ${ops} get/request" "/bench/micro/worker/${ops}/${SIZE}"
     run_wrk "rr memory ${ops} get/request" "/bench/micro/rr-memory/${ops}/${SIZE}"
+    run_wrk "tiered ${ops} get/request" "/bench/micro/tiered/${ops}/${SIZE}"
     run_wrk "rr redis ${ops} get/request" "/bench/micro/rr-redis/${ops}/${SIZE}"
     run_wrk "predis redis ${ops} get/request" "/bench/micro/predis/${ops}/${SIZE}"
 done
