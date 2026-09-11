@@ -46,12 +46,15 @@ RUN composer create-project laravel/laravel:^13.0 /app --prefer-dist --no-intera
     && composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
 COPY app/Support/BenchmarkStores.php /app/app/Support/BenchmarkStores.php
+COPY app/Cache /app/app/Cache
+COPY app/Providers/AppServiceProvider.php /app/app/Providers/AppServiceProvider.php
 COPY routes/web.php /app/routes/web.php
 COPY .rr.yaml /app/.rr.yaml
 COPY php.ini /usr/local/etc/php/conf.d/99-benchmark.ini
 COPY entrypoint.sh /usr/local/bin/benchmark-entrypoint
 
-RUN chmod +x /usr/local/bin/benchmark-entrypoint \
+RUN composer dump-autoload --no-dev --optimize --no-interaction \
+    && chmod +x /usr/local/bin/benchmark-entrypoint \
     && mkdir -p /app/storage/framework/cache /app/storage/framework/sessions /app/storage/framework/views /app/storage/logs /app/bootstrap/cache
 
 EXPOSE 8080
