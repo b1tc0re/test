@@ -80,6 +80,13 @@ Route::get('/bench/probe', static fn () => response()->json([
     'predis_token' => BenchmarkStores::predisGet('shared-token'),
 ]));
 
+Route::get('/bench/redis-raw', static fn () => response()->json([
+    'rr_key' => BenchmarkStores::rrRedisRawKey('shared-token'),
+    'rr_raw' => BenchmarkStores::rawRedisGet(BenchmarkStores::rrRedisRawKey('shared-token')),
+    'predis_key' => BenchmarkStores::predisRawKey('shared-token'),
+    'predis_raw' => BenchmarkStores::rawRedisGet(BenchmarkStores::predisRawKey('shared-token')),
+]));
+
 Route::get('/bench/seed-size/{size}', static function (string $size) use ($normalizeSize) {
     $bytes = $normalizeSize($size);
     $key = "payload:{$bytes}";
