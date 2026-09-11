@@ -19,8 +19,12 @@ services:
       RR_WORKERS: "${RR_WORKERS:-4}"
       RR_MAX_REQUESTS: "${RR_MAX_REQUESTS:-1000000}"
       REDIS_CLIENT: predis
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
+      REDIS_HOST: "${REDIS_HOST:-redis}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      REDIS_USERNAME: "${REDIS_USERNAME:-}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      REDIS_DB: "${REDIS_DB:-0}"
+      BENCH_KEY_PREFIX: "${BENCH_KEY_PREFIX:-rrbench}"
     ports:
       - "8080:8080"
     depends_on:
