@@ -69,6 +69,11 @@ $microRead = static function (string $backend, int $ops, int $size): string {
             'predis' => BenchmarkStores::predisGet($key),
         };
 
+        if ($item === null && $backend === 'worker') {
+            $item = BenchmarkStores::payload($size);
+            BenchmarkStores::workerSet($key, $item);
+        }
+
         abort_if($item === null, 500, "Benchmark key is not seeded for {$backend}");
         $total += strlen($item);
     }
