@@ -26,6 +26,7 @@ $read = static function (string $backend, int $size): string {
         'worker' => BenchmarkStores::workerGet($key),
         'rr-memory' => BenchmarkStores::roadRunnerMemoryGet($key),
         'rr-redis' => BenchmarkStores::roadRunnerRedisGet($key),
+        'tiered' => BenchmarkStores::tieredGet($key),
         'predis' => BenchmarkStores::predisGet($key),
     };
 
@@ -36,6 +37,7 @@ $read = static function (string $backend, int $size): string {
             'worker' => BenchmarkStores::workerSet($key, $value),
             'rr-memory' => BenchmarkStores::roadRunnerMemorySet($key, $value),
             'rr-redis' => BenchmarkStores::roadRunnerRedisSet($key, $value),
+            'tiered' => BenchmarkStores::tieredSet($key, $value),
             'predis' => BenchmarkStores::predisSet($key, $value),
         };
     }
@@ -51,6 +53,7 @@ $write = static function (string $backend, int $size): string {
         'worker' => BenchmarkStores::workerSet($key, $value),
         'rr-memory' => BenchmarkStores::roadRunnerMemorySet($key, $value),
         'rr-redis' => BenchmarkStores::roadRunnerRedisSet($key, $value),
+        'tiered' => BenchmarkStores::tieredSet($key, $value),
         'predis' => BenchmarkStores::predisSet($key, $value),
     };
 
@@ -66,6 +69,7 @@ $microRead = static function (string $backend, int $ops, int $size): string {
             'worker' => BenchmarkStores::workerGet($key),
             'rr-memory' => BenchmarkStores::roadRunnerMemoryGet($key),
             'rr-redis' => BenchmarkStores::roadRunnerRedisGet($key),
+            'tiered' => BenchmarkStores::tieredGet($key),
             'predis' => BenchmarkStores::predisGet($key),
         };
 
@@ -94,6 +98,7 @@ Route::get('/bench/seed', static function (Request $request) {
     BenchmarkStores::workerSet('shared-token', $token);
     BenchmarkStores::roadRunnerMemorySet('shared-token', $token);
     BenchmarkStores::roadRunnerRedisSet('shared-token', $token);
+    BenchmarkStores::tieredSet('shared-token', $token);
     BenchmarkStores::predisSet('shared-token', $token);
 
     return response()->json([
@@ -109,17 +114,50 @@ Route::get('/bench/probe', static fn () => response()->json([
     'worker_token' => BenchmarkStores::workerGet('shared-token'),
     'rr_memory_token' => BenchmarkStores::roadRunnerMemoryGet('shared-token'),
     'rr_redis_token' => BenchmarkStores::roadRunnerRedisGet('shared-token'),
+    'tiered_token' => BenchmarkStores::tieredGet('shared-token'),
     'predis_token' => BenchmarkStores::predisGet('shared-token'),
 ]));
 
 Route::get('/bench/redis-raw', static fn () => response()->json([
     'rr_key' => BenchmarkStores::rrRedisRawKey('shared-token'),
     'rr_raw' => BenchmarkStores::rawRedisGet(BenchmarkStores::rrRedisRawKey('shared-token')),
+    'tiered_key' => BenchmarkStores::tieredRawKey('shared-token'),
+    'tiered_raw' => BenchmarkStores::rawRedisGet(BenchmarkStores::tieredRawKey('shared-token')),
     'predis_key' => BenchmarkStores::predisRawKey('shared-token'),
     'predis_raw' => BenchmarkStores::rawRedisGet(BenchmarkStores::predisRawKey('shared-token')),
 ]));
 
 Route::get('/bench/cleanup', static fn () => response()->json(BenchmarkStores::cleanupRedis()));
+
+Route::get('/bench/tiered/proof/set', static function (Request $request) {
+    $token = (string) ($request->query('token') ?: 'tiered-'.bin2hex(random_bytes(8)));
+    $start = hrtime(true);
+    BenchmarkStores::tieredSet('tiered-proof', $token);
+    $elapsedUs = (hrtime(true) - $start) / 1000;
+
+    return response()->json([
+        'token' => $token,
+        'set_elapsed_us' => round($elapsedUs, 2),
+        'redis_visible_immediately' => BenchmarkStores::rawRedisGet(BenchmarkStores::tieredRawKey('tiered-proof')) !== null,
+    ]);
+});
+
+Route::get('/bench/tiered/proof/clear-l1', static function () {
+    BenchmarkStores::tieredClearL1();
+
+    return response()->json(['cleared' => true]);
+});
+
+Route::get('/bench/tiered/proof/get', static function () {
+    $start = hrtime(true);
+    $value = BenchmarkStores::tieredGet('tiered-proof');
+    $elapsedUs = (hrtime(true) - $start) / 1000;
+
+    return response()->json([
+        'value' => $value,
+        'get_elapsed_us' => round($elapsedUs, 2),
+    ]);
+});
 
 Route::get('/bench/seed-size/{size}', static function (string $size) use ($normalizeSize) {
     $bytes = $normalizeSize($size);
@@ -129,12 +167,13 @@ Route::get('/bench/seed-size/{size}', static function (string $size) use ($norma
     BenchmarkStores::workerSet($key, $value);
     BenchmarkStores::roadRunnerMemorySet($key, $value);
     BenchmarkStores::roadRunnerRedisSet($key, $value);
+    BenchmarkStores::tieredSet($key, $value);
     BenchmarkStores::predisSet($key, $value);
 
     return response()->json(['size' => $bytes]);
 });
 
-foreach (['worker', 'rr-memory', 'rr-redis', 'predis'] as $backend) {
+foreach (['worker', 'rr-memory', 'rr-redis', 'tiered', 'predis'] as $backend) {
     Route::get("/bench/{$backend}/read/{size}", static function (string $size) use ($backend, $normalizeSize, $read) {
         return response($read($backend, $normalizeSize($size)), 200, ['Content-Type' => 'text/plain']);
     });
